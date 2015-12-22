@@ -5,7 +5,7 @@ use self::cassandra::*;
 static COMMENTS_QUERY: &'static str = "SELECT object_type, object_id, comment_date, user_id, comment_id, comment_text, links FROM comments.comments;";
 static CONTACT_POINTS: &'static str = "127.0.0.1";
 
-pub fn create_cluster() -> * Cluster {
+pub fn create_cluster() -> Cluster {
     let mut cluster = Cluster::new();
     cluster
         .set_contact_points(CONTACT_POINTS).unwrap()
