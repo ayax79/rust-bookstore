@@ -1,0 +1,10 @@
+[package]
+name = "cql-example"
+version = "0.1.0"
+authors = ["Jack Wright <jack.wright@nike.com>"]
+
+
+[dependencies]
+
+[dependencies.cassandra]
+git = "https://github.com/tupshin/cassandra-rs"
