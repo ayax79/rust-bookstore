@@ -1,19 +1,11 @@
-extern crate cassandra;
-use cassandra::*;
 mod dao;
-use dao::QUERY;
-use dao::COL_NAME;
-use dao::with_session;
+use dao::create_cluster;
+use dao::load_names;
 
 fn main() {
-    let selector = |session: &Session| {
-        let result = session.execute(QUERY, 0).wait().unwrap();
-        println!("{}", result);
-        for row in result.iter() {
-            println!("ks name = {}", row.get_column_by_name(COL_NAME));
-        }
-        return "hi";
-    };
-    let result = with_session(selector);
-    println!("result {}", result);
+    let mut cluster = create_cluster();
+    let names = load_names(&mut cluster);
+    for name in names {
+        println!("name {}", name);
+    }
 }
