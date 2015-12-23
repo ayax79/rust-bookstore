@@ -7,16 +7,25 @@ use model::BookEntry;
 
 static BOOKS_QUERY: &'static str = "SELECT * FROM books.books";
 
+fn error_logger(msg: &'static str, ce: CassandraError) -> CassandraError {
+    println!("Error querying {} {}", msg, ce);
+    ce
+}
+
 fn read_entry(row: Row) -> BookEntry {
     BookEntry {
         book_id: row.get_column_by_name("book_id")
-                        .get_string()
+                        .get_uuid()
+                        .or_else(|e| Err(error_logger("book_id", e)))
+                        .map(|uuid| uuid.to_string())
                         .unwrap(),
         author: row.get_column_by_name("author")
                         .get_string()
+                        .or_else(|e| Err(error_logger("author", e)))
                         .unwrap(),
         title: row.get_column_by_name("title")
                         .get_string()
+                        .or_else(|e| Err(error_logger("title", e)))
                         .unwrap()
     }
 }
