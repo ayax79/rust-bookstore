@@ -7,6 +7,6 @@ fn main() {
     let mut dao = MyDao::new();
     let names = dao.load_names();
     for name in names {
-        println!("name {}", name.object_type);
+        println!("name {}", name.author);
     }
 }

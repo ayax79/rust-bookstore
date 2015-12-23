@@ -1,19 +1,21 @@
-// mod cassandra_utils;
 extern crate cassandra;
 
 use self::cassandra::*;
 use cassandra_utils::create_cluster;
 use cassandra_utils::with_session;
-use model::CommentEntry;
+use model::BookEntry;
 
-static COMMENTS_QUERY: &'static str = "SELECT object_type, object_id, comment_date, user_id, comment_id, comment_text, links FROM comments.comments;";
+static BOOKS_QUERY: &'static str = "SELECT * FROM books.books";
 
-fn read_entry(row: Row) -> CommentEntry {
-    CommentEntry {
-        object_type: row.get_column_by_name("object_type")
+fn read_entry(row: Row) -> BookEntry {
+    BookEntry {
+        book_id: row.get_column_by_name("book_id")
                         .get_string()
                         .unwrap(),
-        object_id: row.get_column_by_name("object_id")
+        author: row.get_column_by_name("author")
+                        .get_string()
+                        .unwrap(),
+        title: row.get_column_by_name("title")
                         .get_string()
                         .unwrap()
     }
@@ -27,9 +29,9 @@ impl MyDao {
         MyDao { cluster: Box::new(create_cluster()) }
     }
 
-    pub fn load_names(&mut self) ->Vec<CommentEntry>  {
+    pub fn load_names(&mut self) ->Vec<BookEntry>  {
         with_session(self.cluster.as_mut(), |session| {
-            session.execute(COMMENTS_QUERY, 0)
+            session.execute(BOOKS_QUERY, 0)
                     .wait()
                     .unwrap()
                     .iter()
