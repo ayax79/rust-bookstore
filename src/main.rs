@@ -1,10 +1,9 @@
 mod dao;
-use dao::create_cluster;
-use dao::load_names;
+use dao::MyDao;
 
 fn main() {
-    let mut cluster = create_cluster();
-    let names = load_names(&mut cluster);
+    let mut dao = MyDao::new();
+    let names = dao.load_names();
     for name in names {
         println!("name {}", name);
     }
