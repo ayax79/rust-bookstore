@@ -1,4 +1,5 @@
 mod dao;
+mod cassandra_utils;
 use dao::MyDao;
 
 fn main() {
