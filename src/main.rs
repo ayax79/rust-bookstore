@@ -6,34 +6,27 @@ mod dao;
 mod model;
 mod dynamo_utils;
 
-use dao::MyDao;
+use dao::BookDao;
 use dynamo_utils::{create_db_helper, BOOKS_TABLE};
 use rusoto::dynamodb::{DynamoDBError, DynamoDBHelper};
-use model::BookEntry;
+use model::Book;
 use uuid::Uuid;
 
 fn main() {
-    let mut dao = MyDao::new();
+    let mut dao = BookDao::new();
 
-    let book0 = BookEntry {
+    let book0 = Book {
         book_id: Uuid::new_v4(),
         author: "Ernest Hemmingway".to_string(),
         title: "For Whom the Bell Tolls".to_string()
     };
     print_put(&mut dao, &book0);
 
-    let book_result0 = dao.get(&book0.book_id);
-    println!("result: {:#?}", book_result0);
-    // assert!(book0 == book_result0);
-
-    // let names = dao.load_names();
-    // println!("size {} ", names.len());
-    // for name in names {
-    //     println!("author {}", name.author);
-    // }
+    let book_result0: Result<Option<Book>, DynamoDBError> = dao.get(&book0.book_id);
+    print_result(&book0.book_id, book_result0);
 }
 
-fn print_put(dao: &mut MyDao, book: &BookEntry) -> () {
+fn print_put(dao: &mut BookDao, book: &Book) -> () {
     match dao.put(book) {
         Ok(_) => {
             println!("Book {:#?} was added", book.title);
@@ -44,8 +37,20 @@ fn print_put(dao: &mut MyDao, book: &BookEntry) -> () {
     }
 }
 
-// fn dynamo_list_tables_tests(dynamodb: &mut DynamoDBHelper) -> Result<(), DynamoDBError> {
-//     let response = try!(dynamodb.list_tables());
-//     println!("{:#?}", response);
-//     Ok(())
-// }
+fn print_result(book_id: &Uuid, result: Result<Option<Book>, DynamoDBError>) -> () {
+    match result {
+        Ok(maybeBook) => {
+            match maybeBook {
+                Some(book) => {
+                    println!("Found book {:#?}", book);
+                }
+                None => {
+                    println!("No book was found under id {:?}", book_id);
+                }
+            }
+        }
+        Err(err) => {
+            println!("An error occurred {:#?}", err);
+        }
+    }
+}
