@@ -1,52 +1,48 @@
-extern crate cassandra;
-
-use self::cassandra::*;
-use cassandra_utils::create_cluster;
-use cassandra_utils::with_session;
 use model::BookEntry;
+use rusoto::dynamodb::{DynamoDBError, DynamoDBHelper, PutItemInputAttributeMap};
+use rusoto::dynamodb::{AttributeValue, PutItemInput};
+use dynamo_utils::create_db_helper;
+use uuid::Uuid;
 
-static BOOKS_QUERY: &'static str = "SELECT * FROM books.books";
-
-fn error_logger(msg: &'static str, ce: CassandraError) -> CassandraError {
-    println!("Error querying {} {}", msg, ce);
-    ce
-}
-
-fn read_entry(row: Row) -> BookEntry {
+fn read_entry() -> BookEntry {
     BookEntry {
-        book_id: row.get_column_by_name("book_id")
-                        .get_uuid()
-                        .or_else(|e| Err(error_logger("book_id", e)))
-                        .map(|uuid| uuid.to_string())
-                        .unwrap(),
-        author: row.get_column_by_name("author")
-                        .get_string()
-                        .or_else(|e| Err(error_logger("author", e)))
-                        .unwrap(),
-        title: row.get_column_by_name("title")
-                        .get_string()
-                        .or_else(|e| Err(error_logger("title", e)))
-                        .unwrap()
+        book_id: Uuid::new_v4(),
+        author: "bar".to_string(),
+        title: "baz".to_string()
     }
 }
 
-pub struct MyDao { cluster: Box<Cluster> }
+fn build_put_item_input(entry: &BookEntry) -> PutItemInput {
+    let mut input = PutItemInput::default();
+    input.Item = create_item_map(entry);
+    input.TableName = "books".to_string();
+    return input;
+}
 
-impl MyDao {
+fn create_item_map(entry: &BookEntry) -> PutItemInputAttributeMap {
+    let mut item_map = PutItemInputAttributeMap::default();
+    item_map.insert("book_id".to_string(), val!(S => entry.book_id));
+    item_map.insert("author".to_string(), val!(S => entry.author));
+    item_map.insert("title".to_string(), val!(S => entry.title));
+    return item_map;
+}
 
-    pub fn new() -> MyDao {
-        MyDao { cluster: Box::new(create_cluster()) }
+pub struct MyDao<'a> { dynamodb: Box<DynamoDBHelper<'a> > }
+
+impl <'a> MyDao<'a> {
+
+    pub fn new() -> MyDao<'a>   {
+        MyDao { dynamodb: Box::new(create_db_helper()) }
     }
 
-    pub fn load_names(&mut self) ->Vec<BookEntry>  {
-        with_session(self.cluster.as_mut(), |session| {
-            session.execute(BOOKS_QUERY, 0)
-                    .wait()
-                    .unwrap()
-                    .iter()
-                    .map(read_entry)
-                    .collect()
-        })
+    pub fn put(&mut self, entry: &BookEntry) -> Result<(), DynamoDBError> {
+        let item = build_put_item_input(entry);
+        try!(self.dynamodb.as_mut().put_item(&item));
+        Ok(())
     }
+
+    // pub fn get(&mut self, uuid: &UUID) -> {
+    //
+    // }
 
 }
