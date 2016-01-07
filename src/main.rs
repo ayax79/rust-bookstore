@@ -22,6 +22,8 @@ fn main() {
     };
     print_put(&mut dao, &book0);
 
+    dao.get(&book0.book_id);
+
     // let names = dao.load_names();
     // println!("size {} ", names.len());
     // for name in names {
