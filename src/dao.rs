@@ -1,15 +1,42 @@
 use model::Book;
 use rusoto::dynamodb::{DynamoDBError, DynamoDBHelper, PutItemInputAttributeMap};
-use rusoto::dynamodb::{AttributeValue, PutItemInput, Key, GetItemInput};
-use dynamo_utils::{create_db_helper, BOOKS_TABLE};
+use rusoto::dynamodb::{AttributeValue, PutItemInput, Key, GetItemInput, get_str_from_attribute};
+use dynamo_utils::{create_db_helper, BOOKS_TABLE, get_uuid_from_attribute};
 use uuid::Uuid;
 use std::collections::HashMap;
 
+pub struct BookDao<'a> { dynamodb: Box<DynamoDBHelper<'a> > }
+
+impl <'a> BookDao<'a> {
+
+    pub fn new() -> BookDao<'a>   {
+        BookDao { dynamodb: Box::new(create_db_helper()) }
+    }
+
+    pub fn put(&mut self, entry: &Book) -> Result<(), DynamoDBError> {
+        let item = build_put_item_input(entry);
+        try!(self.dynamodb.as_mut().put_item(&item));
+        Ok(())
+    }
+
+    pub fn get(&mut self, uuid: &Uuid) -> Result<Option<Book>, DynamoDBError> {
+        let request = create_get_item_input(uuid);
+
+        match self.dynamodb.as_mut().get_item(&request) {
+            Ok(item) => {
+                Ok(item.Item.map(|item_map| read_entry(item_map)))
+            }
+            Err(err) => Err(err)
+        }
+    }
+
+}
+
 fn read_entry(item_map: HashMap<String, AttributeValue>) -> Book {
     Book {
-        book_id: Uuid::new_v4(),
-        author: "bar".to_string(),
-        title: "baz".to_string()
+        book_id: get_uuid_from_attribute(&item_map.get("book_id").unwrap()).unwrap(),
+        author: get_str_from_attribute(&item_map.get("author").unwrap()).unwrap().to_string(),
+        title: get_str_from_attribute(&item_map.get("title").unwrap()).unwrap().to_string()
     }
 }
 
@@ -39,31 +66,4 @@ fn create_get_item_input(uuid: &Uuid) -> GetItemInput {
     request.Key = create_key(uuid);
     request.TableName = BOOKS_TABLE.to_string();
     return request;
-}
-
-pub struct BookDao<'a> { dynamodb: Box<DynamoDBHelper<'a> > }
-
-impl <'a> BookDao<'a> {
-
-    pub fn new() -> BookDao<'a>   {
-        BookDao { dynamodb: Box::new(create_db_helper()) }
-    }
-
-    pub fn put(&mut self, entry: &Book) -> Result<(), DynamoDBError> {
-        let item = build_put_item_input(entry);
-        try!(self.dynamodb.as_mut().put_item(&item));
-        Ok(())
-    }
-
-    pub fn get(&mut self, uuid: &Uuid) -> Result<Option<Book>, DynamoDBError> {
-        let request = create_get_item_input(uuid);
-
-        match self.dynamodb.as_mut().get_item(&request) {
-            Ok(item) => {
-                Ok(item.Item.map(|item_map| read_entry(item_map)))
-            }
-            Err(err) => Err(err)
-        }
-    }
-
 }

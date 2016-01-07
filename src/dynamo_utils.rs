@@ -1,8 +1,8 @@
-extern crate rusoto;
-use self::rusoto::regions::*;
-use self::rusoto::credentials::*;
-use self::rusoto::dynamodb::{DynamoDBHelper, CreateTableInput, DynamoDBError};
-use self::rusoto::dynamodb::{AttributeDefinition, KeySchemaElement};
+use rusoto::regions::*;
+use rusoto::credentials::*;
+use rusoto::dynamodb::{DynamoDBHelper, CreateTableInput, DynamoDBError, AttributeValue};
+use rusoto::dynamodb::{AttributeDefinition, KeySchemaElement, get_str_from_attribute};
+use uuid::{Uuid, ParseError};
 
 pub static REGION:&'static Region = &Region::UsWest2;
 // pub static CREDS:&'static AWSCredentialsProvider = &DefaultAWSCredentialsProviderChain::new();
@@ -55,4 +55,10 @@ pub fn create_db_helper<'a>() -> DynamoDBHelper<'a> {
         }
     }
     return dynamodb;
+}
+
+pub fn get_uuid_from_attribute(attr: &AttributeValue) -> Option<Uuid> {
+    get_str_from_attribute(attr)
+        .map(|uuid_string| Uuid::parse_str(uuid_string))
+        .and_then(|uuid_result| uuid_result.ok())
 }

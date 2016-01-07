@@ -7,7 +7,7 @@ mod model;
 mod dynamo_utils;
 
 use dao::BookDao;
-use dynamo_utils::{create_db_helper, BOOKS_TABLE};
+use dynamo_utils::{create_db_helper, BOOKS_TABLE, get_uuid_from_attribute};
 use rusoto::dynamodb::{DynamoDBError, DynamoDBHelper};
 use model::Book;
 use uuid::Uuid;
