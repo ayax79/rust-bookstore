@@ -22,7 +22,9 @@ fn main() {
     };
     print_put(&mut dao, &book0);
 
-    dao.get(&book0.book_id);
+    let book_result0 = dao.get(&book0.book_id);
+    println!("result: {:#?}", book_result0);
+    // assert!(book0 == book_result0);
 
     // let names = dao.load_names();
     // println!("size {} ", names.len());

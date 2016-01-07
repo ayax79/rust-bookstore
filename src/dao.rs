@@ -3,8 +3,9 @@ use rusoto::dynamodb::{DynamoDBError, DynamoDBHelper, PutItemInputAttributeMap};
 use rusoto::dynamodb::{AttributeValue, PutItemInput, Key, GetItemInput};
 use dynamo_utils::{create_db_helper, BOOKS_TABLE};
 use uuid::Uuid;
+use std::collections::HashMap;
 
-fn read_entry() -> BookEntry {
+fn read_entry(item_map: HashMap<String, AttributeValue>) -> BookEntry {
     BookEntry {
         book_id: Uuid::new_v4(),
         author: "bar".to_string(),
@@ -54,13 +55,15 @@ impl <'a> MyDao<'a> {
         Ok(())
     }
 
-    pub fn get(&mut self, uuid: &Uuid) -> Result<(), DynamoDBError> {
+    pub fn get(&mut self, uuid: &Uuid) -> Result<Option<BookEntry>, DynamoDBError> {
         let request = create_get_item_input(uuid);
 
-        let result = try!(self.dynamodb.as_mut().get_item(&request));
-        println!("result {:?}", result);
-
-        Ok(())
+        match (self.dynamodb.as_mut().get_item(&request)) {
+            Ok(item) => {
+                Ok(item.Item.map(|item_map| read_entry(item_map)))
+            }
+            Err(err) => Err(err)
+        }
     }
 
 }
