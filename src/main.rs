@@ -7,8 +7,7 @@ mod model;
 mod dynamo_utils;
 
 use dao::BookDao;
-use dynamo_utils::{create_db_helper, BOOKS_TABLE, get_uuid_from_attribute};
-use rusoto::dynamodb::{DynamoDBError, DynamoDBHelper};
+use rusoto::dynamodb::DynamoDBError;
 use model::Book;
 use uuid::Uuid;
 
@@ -39,8 +38,8 @@ fn print_put(dao: &mut BookDao, book: &Book) -> () {
 
 fn print_result(book_id: &Uuid, result: Result<Option<Book>, DynamoDBError>) -> () {
     match result {
-        Ok(maybeBook) => {
-            match maybeBook {
+        Ok(maybe_book) => {
+            match maybe_book {
                 Some(book) => {
                     println!("Found book {:#?}", book);
                 }

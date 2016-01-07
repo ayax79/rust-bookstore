@@ -2,7 +2,7 @@ use rusoto::regions::*;
 use rusoto::credentials::*;
 use rusoto::dynamodb::{DynamoDBHelper, CreateTableInput, DynamoDBError, AttributeValue};
 use rusoto::dynamodb::{AttributeDefinition, KeySchemaElement, get_str_from_attribute};
-use uuid::{Uuid, ParseError};
+use uuid::Uuid;
 
 pub static REGION:&'static Region = &Region::UsWest2;
 // pub static CREDS:&'static AWSCredentialsProvider = &DefaultAWSCredentialsProviderChain::new();
@@ -16,6 +16,7 @@ fn create_credential_provider() -> DefaultAWSCredentialsProviderChain {
 fn is_not_exists_err(s: &DynamoDBError) -> bool {
     // seems fields in DbError are currently not public
     // s.contains("ResourceNotFoundException")
+    println!("err: {:#?}", s);
     true
 }
 
@@ -27,7 +28,7 @@ fn create_book_table(dynamodb: &mut DynamoDBHelper) -> Result<(), DynamoDBError>
                         .with_attributes(attributes!("book_id" => "S"))
                         .with_key_schema(key_schema!("book_id" => "HASH"));
 
-    let result = try!(dynamodb.create_table(&input));
+    try!(dynamodb.create_table(&input));
     Ok(())
 }
 
