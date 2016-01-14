@@ -1,5 +1,5 @@
 use model::Book;
-use rusoto::dynamodb::{DynamoDBError, DynamoDBHelper, PutItemInputAttributeMap};
+use rusoto::dynamodb::{DynamoDBError, DynamoDBHelper, PutItemInputAttributeMap, DeleteRequest};
 use rusoto::dynamodb::{AttributeValue, PutItemInput, Key, GetItemInput, get_str_from_attribute};
 use dynamo_utils::{create_db_helper, BOOKS_TABLE, get_uuid_from_attribute};
 use uuid::Uuid;
@@ -28,6 +28,14 @@ impl <'a> BookDao<'a> {
             }
             Err(err) => Err(err)
         }
+    }
+
+    pub fn delete(&mut self, uuid: &Uuid) -> Result<(), DynamoDBError> {
+        let request = BookDao::create_delete_request(uuid);
+        // try!(self.dynamodb.as_mut().)
+
+        // IT doesn't appear this is fully implemented yet.
+        Ok(())
     }
 
     fn read_entry(item_map: HashMap<String, AttributeValue>) -> Book {
@@ -63,6 +71,14 @@ impl <'a> BookDao<'a> {
         let mut request = GetItemInput::default();
         request.Key = BookDao::create_key(uuid);
         request.TableName = BOOKS_TABLE.to_string();
+        return request;
+    }
+
+    fn create_delete_request(uuid: &Uuid) -> DeleteRequest {
+        let key = BookDao::create_key(uuid);
+        let mut request = DeleteRequest::default();
+        request.Key = key;
+        // request.TableName = BOOKS_TABLE.to_string(); not yet implemented
         return request;
     }
 }

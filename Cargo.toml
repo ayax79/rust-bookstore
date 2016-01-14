@@ -1,5 +1,5 @@
 [package]
-name = "cql-example"
+name = "bookstore"
 version = "0.1.0"
 authors = ["Jack Wright <jack.wright@nike.com>"]
 
