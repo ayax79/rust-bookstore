@@ -6,3 +6,7 @@ authors = ["Jack Wright <jack.wright@nike.com>"]
 [dependencies]
 rusoto = "0.10.0"
 uuid = "0.1.18"
+iron = "*"
+router = "*"
+hyper = "*"
+rustc-serialize = "*"
