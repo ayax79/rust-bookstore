@@ -1,28 +1,29 @@
 use model::Book;
 use rusoto::dynamodb::{DynamoDBError, DynamoDBHelper, PutItemInputAttributeMap, DeleteRequest};
 use rusoto::dynamodb::{AttributeValue, PutItemInput, Key, GetItemInput, get_str_from_attribute};
+use rusoto::dynamodb::{QueryInput, QueryOutput, DynamoDBClient};
 use dynamo_utils::{create_db_helper, BOOKS_TABLE, get_uuid_from_attribute};
 use uuid::Uuid;
 use std::collections::HashMap;
 
-pub struct BookDao<'a> { dynamodb: Box<DynamoDBHelper<'a> > }
+pub struct BookDao;
 
-impl <'a> BookDao<'a> {
+impl BookDao {
 
-    pub fn new() -> BookDao<'a>   {
-        BookDao { dynamodb: Box::new(create_db_helper()) }
+    pub fn new() -> BookDao {
+        BookDao
     }
 
     pub fn put(&mut self, entry: &Book) -> Result<(), DynamoDBError> {
         let item = BookDao::build_put_item_input(entry);
-        try!(self.dynamodb.as_mut().put_item(&item));
+        try!(create_db_helper().put_item(&item));
         Ok(())
     }
 
     pub fn get(&mut self, uuid: &Uuid) -> Result<Option<Book>, DynamoDBError> {
         let request = BookDao::create_get_item_input(uuid);
 
-        match self.dynamodb.as_mut().get_item(&request) {
+        match create_db_helper().get_item(&request) {
             Ok(item) => {
                 Ok(item.Item.map(|item_map| BookDao::read_entry(item_map)))
             }
@@ -30,10 +31,15 @@ impl <'a> BookDao<'a> {
         }
     }
 
+    pub fn list(&mut self) -> Result<Vec<Book>, DynamoDBError> {
+        //let query = BookDao::buildQuery();
+        //let result = create_db_helper().query(&query);
+        //println!("result {:#?}", result);
+        Ok(vec![])
+    }
+
     pub fn delete(&mut self, uuid: &Uuid) -> Result<(), DynamoDBError> {
         let request = BookDao::create_delete_request(uuid);
-        // try!(self.dynamodb.as_mut().)
-
         // IT doesn't appear this is fully implemented yet.
         Ok(())
     }
@@ -44,6 +50,12 @@ impl <'a> BookDao<'a> {
             author: get_str_from_attribute(&item_map.get("author").unwrap()).unwrap().to_string(),
             title: get_str_from_attribute(&item_map.get("title").unwrap()).unwrap().to_string()
         }
+    }
+
+    fn buildQuery() -> QueryInput {
+        let mut query = QueryInput::default();
+        query.TableName = BOOKS_TABLE.to_string();
+        return query;
     }
 
     fn build_put_item_input(entry: &Book) -> PutItemInput {

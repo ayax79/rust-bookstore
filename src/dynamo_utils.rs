@@ -2,12 +2,47 @@ use rusoto::regions::*;
 use rusoto::credentials::*;
 use rusoto::dynamodb::{DynamoDBHelper, CreateTableInput, DynamoDBError, AttributeValue};
 use rusoto::dynamodb::{AttributeDefinition, KeySchemaElement, get_str_from_attribute};
+use rusoto::dynamodb::{DynamoDBClient};
 use uuid::Uuid;
 
 pub static REGION:&'static Region = &Region::UsWest2;
 // pub static CREDS:&'static AWSCredentialsProvider = &DefaultAWSCredentialsProviderChain::new();
 
 pub static BOOKS_TABLE:&'static str = "books";
+
+pub fn initialize_db() {
+    let mut dynamodb = create_db_helper();
+    match dynamodb.describe_table("books") {
+        Ok(_) => {
+            println!("books table exists, continuing.");
+        }
+        Err(ref err) if is_not_exists_err(err) => {
+            println!("An error occurred ${:#?}", err);
+            println!("books table may not exist, creating");
+            match create_book_table(&mut dynamodb) {
+                Ok(_) => {
+                    println!("successfully created books table")
+                }
+                Err(err) => {
+                    println!("Could not create books table ${:#?}", err)
+                }
+            }
+        }
+        Err(err) => {
+            println!("An error occurred ${:#?}", err);
+        }
+    }
+}
+
+pub fn create_db_helper<'a>() -> DynamoDBHelper<'a> {
+    DynamoDBHelper::new(create_credential_provider(), REGION)
+}
+
+pub fn get_uuid_from_attribute(attr: &AttributeValue) -> Option<Uuid> {
+    get_str_from_attribute(attr)
+        .map(|uuid_string| Uuid::parse_str(uuid_string))
+        .and_then(|uuid_result| uuid_result.ok())
+}
 
 fn create_credential_provider() -> DefaultAWSCredentialsProviderChain {
     DefaultAWSCredentialsProviderChain::new()
@@ -30,36 +65,4 @@ fn create_book_table(dynamodb: &mut DynamoDBHelper) -> Result<(), DynamoDBError>
 
     try!(dynamodb.create_table(&input));
     Ok(())
-}
-
-pub fn create_db_helper<'a>() -> DynamoDBHelper<'a> {
-    let mut dynamodb = DynamoDBHelper::new(create_credential_provider(), REGION);
-
-    match dynamodb.describe_table("books") {
-        Ok(_) => {
-            println!("books table exists, continuing.");
-        }
-        Err(ref err) if is_not_exists_err(err) => {
-            println!("An error occurred ${:#?}", err);
-            println!("books table may not exist, creating");
-            match create_book_table(&mut dynamodb) {
-                Ok(_) => {
-                    println!("successfully created books table")
-                }
-                Err(err) => {
-                    println!("Could not create books table ${:#?}", err)
-                }
-            }
-        }
-        Err(err) => {
-            println!("An error occurred ${:#?}", err);
-        }
-    }
-    return dynamodb;
-}
-
-pub fn get_uuid_from_attribute(attr: &AttributeValue) -> Option<Uuid> {
-    get_str_from_attribute(attr)
-        .map(|uuid_string| Uuid::parse_str(uuid_string))
-        .and_then(|uuid_result| uuid_result.ok())
 }

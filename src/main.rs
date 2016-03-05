@@ -18,18 +18,14 @@ use model::Book;
 use uuid::Uuid;
 use dao::BookDao;
 use rusoto::dynamodb::DynamoDBError;
-
-// mod dao;
-// mod model;
-//
-// use dao::BookDao;
-// use rusoto::dynamodb::DynamoDBError;
+use dynamo_utils::initialize_db;
 
 fn main() {
+    initialize_db();
     let mut router = Router::new();
+    router.get("/books/:book_id", get_book);
     router.get("/books", book_list);
     router.put("/books", create_book);
-
 
     fn book_list(_: &mut Request) -> IronResult<Response> {
         let book0 = Book {
@@ -38,6 +34,15 @@ fn main() {
             title: "For Whom the Bell Tolls".to_string()
         };
         let payload = json::encode(&book0).unwrap();
+        Ok(Response::with((status::Ok, payload)))
+    }
+
+    fn get_book(request: &mut Request) -> IronResult<Response> {
+        let mut dao = BookDao::new();
+        let ref book_id_string = request.extensions.get::<Router>().unwrap().find("book_id").unwrap();
+        let book_id = Uuid::parse_str(book_id_string).unwrap();
+        let book:Book = dao.get(&book_id).unwrap().unwrap();
+        let payload = json::encode(&book).unwrap();
         Ok(Response::with((status::Ok, payload)))
     }
 
