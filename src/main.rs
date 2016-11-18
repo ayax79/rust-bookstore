@@ -1,10 +1,12 @@
-#[macro_use]
 extern crate rusoto;
 extern crate uuid;
 extern crate iron;
+#[macro_use(router)]
 extern crate router;
+extern crate hyper;
 extern crate rustc_serialize;
 
+#[macro_use]
 mod dynamo_utils;
 mod model;
 mod dao;
@@ -17,15 +19,16 @@ use rustc_serialize::json;
 use model::Book;
 use uuid::Uuid;
 use dao::BookDao;
-use rusoto::dynamodb::DynamoDBError;
 use dynamo_utils::initialize_db;
 
 fn main() {
     initialize_db();
-    let mut router = Router::new();
-    router.get("/books/:book_id", get_book);
-    router.get("/books", book_list);
-    router.put("/books", create_book);
+
+    let router = router!(
+        get_book: get "/books/:book_id" => get_book,
+        get_books: get "/books" => book_list,
+        put_book: put "/books/:book_id" => create_book
+    );
 
     fn book_list(_: &mut Request) -> IronResult<Response> {
         let book0 = Book {
@@ -69,36 +72,3 @@ fn print_put(dao: &mut BookDao, book: &Book) -> () {
         }
     }
 }
-
-fn print_result(book_id: &Uuid, result: Result<Option<Book>, DynamoDBError>) -> () {
-    match result {
-        Ok(maybe_book) => {
-            match maybe_book {
-                Some(book) => {
-                    println!("Found book {:#?}", book);
-                }
-                None => {
-                    println!("No book was found under id {:?}", book_id);
-                }
-            }
-        }
-        Err(err) => {
-            println!("An error occurred {:#?}", err);
-        }
-    }
-}
-
-
-// fn main() {
-//     let mut dao = BookDao::new();
-//
-//     let book0 = Book {
-//         book_id: Uuid::new_v4(),
-//         author: "Ernest Hemmingway".to_string(),
-//         title: "For Whom the Bell Tolls".to_string()
-//     };
-//     print_put(&mut dao, &book0);
-//
-//     let book_result0: Result<Option<Book>, DynamoDBError> = dao.get(&book0.book_id);
-//     print_result(&book0.book_id, book_result0);
-// }

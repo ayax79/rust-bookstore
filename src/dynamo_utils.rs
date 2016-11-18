@@ -1,23 +1,88 @@
-use rusoto::regions::*;
-use rusoto::credentials::*;
-use rusoto::dynamodb::{DynamoDBHelper, CreateTableInput, DynamoDBError, AttributeValue};
-use rusoto::dynamodb::{AttributeDefinition, KeySchemaElement, get_str_from_attribute};
-use rusoto::dynamodb::{DynamoDBClient};
+use rusoto::{DefaultCredentialsProvider, Region};
+use rusoto::dynamodb::*;
 use uuid::Uuid;
+use hyper::client::Client;
+use std::str::from_utf8;
 
-pub static REGION:&'static Region = &Region::UsWest2;
-// pub static CREDS:&'static AWSCredentialsProvider = &DefaultAWSCredentialsProviderChain::new();
+
+type SimpleDynamoClient = DynamoDbClient<DefaultCredentialsProvider, Client>;
 
 pub static BOOKS_TABLE:&'static str = "books";
 
+
+#[macro_export]
+macro_rules! val {
+	(B => $val:expr) => (
+	    {
+	    	let mut attr = AttributeValue::default();
+	    	attr.b = Some($val);
+	    	attr
+	    }
+	);
+	(S => $val:expr) => (
+	    {
+			let mut attr = AttributeValue::default();
+			attr.s = Some($val.to_string());
+			attr
+		}
+	);
+	(N => $val:expr) => (
+	    {
+	    	let mut attr = AttributeValue::default();
+	    	attr.n = Some($val.to_string());
+	    	attr
+	    }
+	);
+}
+
+#[macro_export]
+macro_rules! attributes {
+    ($($val:expr => $attr_type:expr),*) => {
+        {
+            let mut temp_vec = Vec::new();
+            $(
+                temp_vec.push(AttributeDefinition { attribute_name: String::from($val), attribute_type: String::from($attr_type) });
+            )*
+            temp_vec
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! key_schema {
+    ($($name:expr => $key_type:expr),*) => {
+        {
+            let mut temp_vec = Vec::new();
+            $(
+                temp_vec.push(KeySchemaElement { key_type: String::from($key_type), attribute_name: String::from($name) });
+            )*
+            temp_vec
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! item_map {
+    ($($map_key:expr => $map_value:expr),*) => {
+        {
+            let mut temp_map = PutItemInputAttributeMap::new();
+            $(
+                temp_map.insert(String::from($map_key), $map_value);
+            )*
+            temp_map
+        }
+    }
+}
+
 pub fn initialize_db() {
-    let mut dynamodb = create_db_helper();
-    match dynamodb.describe_table("books") {
+    let mut dynamodb = create_dynamo_client();
+    let request = DescribeTableInput { table_name: "books".to_string() };
+    match dynamodb.describe_table(&request) {
         Ok(_) => {
             println!("books table exists, continuing.");
         }
-        Err(ref err) if is_not_exists_err(err) => {
-            println!("An error occurred ${:#?}", err);
+        Err(DescribeTableError::ResourceNotFound(msg)) => {
+            println!("An error occurred ${:#?}", msg);
             println!("books table may not exist, creating");
             match create_book_table(&mut dynamodb) {
                 Ok(_) => {
@@ -34,8 +99,23 @@ pub fn initialize_db() {
     }
 }
 
-pub fn create_db_helper<'a>() -> DynamoDBHelper<'a> {
-    DynamoDBHelper::new(create_credential_provider(), REGION)
+pub fn get_str_from_attribute(attr: &AttributeValue) -> Option<&str> {
+    match attr.b {
+        None => (),
+        Some(ref blob_attribute) => return Some(from_utf8(blob_attribute).unwrap()),
+    }
+
+    match attr.s {
+        None => (),
+        Some(ref string_attribute) => return Some(string_attribute),
+    }
+
+    match attr.n {
+        None => (),
+        Some(ref number_attribute) => return Some(number_attribute),
+    }
+
+    return None;
 }
 
 pub fn get_uuid_from_attribute(attr: &AttributeValue) -> Option<Uuid> {
@@ -44,25 +124,25 @@ pub fn get_uuid_from_attribute(attr: &AttributeValue) -> Option<Uuid> {
         .and_then(|uuid_result| uuid_result.ok())
 }
 
-fn create_credential_provider() -> DefaultAWSCredentialsProviderChain {
-    DefaultAWSCredentialsProviderChain::new()
+pub fn create_dynamo_client() -> SimpleDynamoClient {
+    let credentials = DefaultCredentialsProvider::new().unwrap();
+    DynamoDbClient::new(credentials, Region::UsEast1)
 }
 
-fn is_not_exists_err(s: &DynamoDBError) -> bool {
-    // seems fields in DbError are currently not public
-    // s.contains("ResourceNotFoundException")
-    println!("err: {:#?}", s);
-    true
-}
-
-fn create_book_table(dynamodb: &mut DynamoDBHelper) -> Result<(), DynamoDBError> {
-    let input = CreateTableInput::new()
-                        .with_name(BOOKS_TABLE)
-                        .with_write_capacity(1)
-                        .with_read_capacity(1)
-                        .with_attributes(attributes!("book_id" => "S"))
-                        .with_key_schema(key_schema!("book_id" => "HASH"));
-
-    try!(dynamodb.create_table(&input));
+fn create_book_table(client: &mut DynamoDbClient<DefaultCredentialsProvider, Client>) -> Result<(), CreateTableError> {
+    let provisioning = ProvisionedThroughput {
+        read_capacity_units: 1,
+        write_capacity_units: 1
+    };
+    let input = CreateTableInput {
+        attribute_definitions: attributes!("book_id" => "S"),
+        key_schema: key_schema!("book_id" => "HASH"),
+        provisioned_throughput: provisioning,
+        table_name: "books".to_string(),
+        local_secondary_indexes: None,
+        global_secondary_indexes: None,
+        stream_specification: None
+    };
+    try!(client.create_table(&input));
     Ok(())
 }

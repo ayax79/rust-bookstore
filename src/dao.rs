@@ -1,96 +1,67 @@
 use model::Book;
-use rusoto::dynamodb::{DynamoDBError, DynamoDBHelper, PutItemInputAttributeMap, DeleteRequest};
-use rusoto::dynamodb::{AttributeValue, PutItemInput, Key, GetItemInput, get_str_from_attribute};
-use rusoto::dynamodb::{QueryInput, QueryOutput, DynamoDBClient};
-use dynamo_utils::{create_db_helper, BOOKS_TABLE, get_uuid_from_attribute};
+use rusoto::dynamodb::*;
+use dynamo_utils::{create_dynamo_client, BOOKS_TABLE, get_uuid_from_attribute, get_str_from_attribute};
 use uuid::Uuid;
-use std::collections::HashMap;
 
 pub struct BookDao;
 
 impl BookDao {
-
     pub fn new() -> BookDao {
         BookDao
     }
 
-    pub fn put(&mut self, entry: &Book) -> Result<(), DynamoDBError> {
-        let item = BookDao::build_put_item_input(entry);
-        try!(create_db_helper().put_item(&item));
+    pub fn put(&mut self, entry: &Book) -> Result<(), PutItemError> {
+        let item_map = item_map!(
+            "book_id".to_string() => val!(S => entry.book_id.hyphenated().to_string()),
+            "author".to_string() => val!(S => entry.author),
+            "title".to_string() => val!(S => entry.title));
+
+        let mut request = PutItemInput::default();
+        request.item = item_map;
+        request.table_name = BOOKS_TABLE.to_string();
+
+        try!(create_dynamo_client().put_item(&request));
         Ok(())
     }
 
-    pub fn get(&mut self, uuid: &Uuid) -> Result<Option<Book>, DynamoDBError> {
-        let request = BookDao::create_get_item_input(uuid);
+    pub fn get(&mut self, uuid: &Uuid) -> Result<Option<Book>, GetItemError> {
+        let mut request = GetItemInput::default();
+        request.key = BookDao::create_key(uuid);
+        request.table_name = BOOKS_TABLE.to_string();
 
-        match create_db_helper().get_item(&request) {
-            Ok(item) => {
-                Ok(item.Item.map(|item_map| BookDao::read_entry(item_map)))
+        match create_dynamo_client().get_item(&request) {
+            Ok(response) => {
+                Ok(BookDao::read_entry(&response.item))
             }
             Err(err) => Err(err)
         }
     }
 
-    pub fn list(&mut self) -> Result<Vec<Book>, DynamoDBError> {
-        //let query = BookDao::buildQuery();
-        //let result = create_db_helper().query(&query);
-        //println!("result {:#?}", result);
-        Ok(vec![])
-    }
+//    pub fn delete(&mut self, uuid: &Uuid) -> Result<(), DeleteItemError> {
+//        let key = BookDao::create_key(uuid);
+//        let mut request = DeleteRequest::default();
+//        request.key = key;
+//        // request.TableName = BOOKS_TABLE.to_string(); not yet implemented
+//
+//        // IT doesn't appear this is fully implemented yet.
+//        Ok(())
+//    }
 
-    pub fn delete(&mut self, uuid: &Uuid) -> Result<(), DynamoDBError> {
-        let request = BookDao::create_delete_request(uuid);
-        // IT doesn't appear this is fully implemented yet.
-        Ok(())
-    }
-
-    fn read_entry(item_map: HashMap<String, AttributeValue>) -> Book {
-        Book {
-            book_id: get_uuid_from_attribute(&item_map.get("book_id").unwrap()).unwrap(),
-            author: get_str_from_attribute(&item_map.get("author").unwrap()).unwrap().to_string(),
-            title: get_str_from_attribute(&item_map.get("title").unwrap()).unwrap().to_string()
-        }
-    }
-
-    fn buildQuery() -> QueryInput {
-        let mut query = QueryInput::default();
-        query.TableName = BOOKS_TABLE.to_string();
-        return query;
-    }
-
-    fn build_put_item_input(entry: &Book) -> PutItemInput {
-        let mut input = PutItemInput::default();
-        input.Item = BookDao::create_put_item_map(entry);
-        input.TableName = BOOKS_TABLE.to_string();
-        return input;
-    }
-
-    fn create_put_item_map(entry: &Book) -> PutItemInputAttributeMap {
-        let mut item_map = PutItemInputAttributeMap::default();
-        item_map.insert("book_id".to_string(), val!(S => entry.book_id.to_urn_string()));
-        item_map.insert("author".to_string(), val!(S => entry.author));
-        item_map.insert("title".to_string(), val!(S => entry.title));
-        return item_map;
+    fn read_entry(item_map: &Option<AttributeMap>) -> Option<Book> {
+        item_map
+            .as_ref()
+            .map(|item_map| {
+                Book {
+                    book_id: get_uuid_from_attribute(item_map.get("book_id").unwrap()).unwrap(),
+                    author: get_str_from_attribute(item_map.get("author").unwrap()).unwrap().to_string(),
+                    title: get_str_from_attribute(item_map.get("title").unwrap()).unwrap().to_string()
+                }
+            })
     }
 
     fn create_key(uuid: &Uuid) -> Key {
         let mut key = Key::default();
-        key.insert("book_id".to_string(), val!(S => uuid.to_urn_string()));
-        return key;
-    }
-
-    fn create_get_item_input(uuid: &Uuid) -> GetItemInput {
-        let mut request = GetItemInput::default();
-        request.Key = BookDao::create_key(uuid);
-        request.TableName = BOOKS_TABLE.to_string();
-        return request;
-    }
-
-    fn create_delete_request(uuid: &Uuid) -> DeleteRequest {
-        let key = BookDao::create_key(uuid);
-        let mut request = DeleteRequest::default();
-        request.Key = key;
-        // request.TableName = BOOKS_TABLE.to_string(); not yet implemented
-        return request;
+        key.insert("book_id".to_string(), val!(S => uuid.hyphenated().to_string()));
+        key
     }
 }
