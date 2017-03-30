@@ -58,8 +58,8 @@ fn main() {
         Ok(Response::with((status::Ok, payload)))
     }
 
-    println!("Starting bookstore server on port 3000");
-    Iron::new(router).http("localhost:3000").unwrap();
+    println!("Starting bookstore server on port 8080");
+    Iron::new(router).http("0.0.0.0:8080").unwrap();
 }
 
 fn print_put(dao: &mut BookDao, book: &Book) -> () {

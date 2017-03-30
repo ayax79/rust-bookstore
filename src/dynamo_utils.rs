@@ -3,7 +3,7 @@ use rusoto::dynamodb::*;
 use uuid::Uuid;
 use hyper::client::Client;
 use std::str::from_utf8;
-
+use rusoto::default_tls_client;
 
 type SimpleDynamoClient = DynamoDbClient<DefaultCredentialsProvider, Client>;
 
@@ -126,7 +126,7 @@ pub fn get_uuid_from_attribute(attr: &AttributeValue) -> Option<Uuid> {
 
 pub fn create_dynamo_client() -> SimpleDynamoClient {
     let credentials = DefaultCredentialsProvider::new().unwrap();
-    DynamoDbClient::new(credentials, Region::UsEast1)
+    DynamoDbClient::new(default_tls_client().unwrap(), credentials, Region::UsWest2)
 }
 
 fn create_book_table(client: &mut DynamoDbClient<DefaultCredentialsProvider, Client>) -> Result<(), CreateTableError> {

@@ -4,13 +4,14 @@ version = "0.1.0"
 authors = ["Jack Wright <jack.wright@nike.com>"]
 
 [dependencies]
+libc = "0.2.17"
 time = "0.1.35"
-regex = "0.1.80"
-rusoto = {version = "0.18.1", features = ["dynamodb"]}
-uuid = {version = "0.3.1", features = ["v4", "rustc-serialize"]}
-router = "*"
-hyper = "*"
-rustc-serialize = "*"
+regex = "0.2.1"
+rusoto = {version = "0.23", features = ["dynamodb"]}
+uuid = {version = "0.4.0", features = ["v4", "rustc-serialize"]}
+router = "0.5.1"
+hyper = "0.10"
+rustc-serialize = "0.3.21"
 
 [dependencies.iron]
 version = "*"
