@@ -2,3 +2,5 @@
 .git
 LICENSE
 README.md
+target
+mac_env.sh
