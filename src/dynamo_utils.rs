@@ -1,13 +1,9 @@
-use rusoto::{DefaultCredentialsProvider, Region};
-use rusoto::dynamodb::*;
+use rusoto_dynamodb::*;
 use uuid::Uuid;
-use hyper::client::Client;
 use std::str::from_utf8;
-use rusoto::default_tls_client;
 
-type SimpleDynamoClient = DynamoDbClient<DefaultCredentialsProvider, Client>;
 
-pub static BOOKS_TABLE:&'static str = "books";
+pub static BOOKS_TABLE: &'static str = "books";
 
 
 #[macro_export]
@@ -65,7 +61,7 @@ macro_rules! key_schema {
 macro_rules! item_map {
     ($($map_key:expr => $map_value:expr),*) => {
         {
-            let mut temp_map = PutItemInputAttributeMap::new();
+            let mut temp_map = HashMap::new();
             $(
                 temp_map.insert(String::from($map_key), $map_value);
             )*
@@ -74,8 +70,17 @@ macro_rules! item_map {
     }
 }
 
+#[macro_export]
+macro_rules! build_db_client {
+    () => ({
+        use rusoto_core;
+        // todo - fix me, i'm hard coded
+        DynamoDbClient::new(rusoto_core::default_tls_client().unwrap(), rusoto_core::DefaultCredentialsProvider::new().unwrap(), rusoto_core::Region::UsWest2)
+    })
+}
+
 pub fn initialize_db() {
-    let mut dynamodb = create_dynamo_client();
+    let dynamodb = build_db_client!();
     let request = DescribeTableInput { table_name: "books".to_string() };
     match dynamodb.describe_table(&request) {
         Ok(_) => {
@@ -84,7 +89,7 @@ pub fn initialize_db() {
         Err(DescribeTableError::ResourceNotFound(msg)) => {
             println!("An error occurred ${:#?}", msg);
             println!("books table may not exist, creating");
-            match create_book_table(&mut dynamodb) {
+            match create_book_table() {
                 Ok(_) => {
                     println!("successfully created books table")
                 }
@@ -97,6 +102,7 @@ pub fn initialize_db() {
             println!("An error occurred ${:#?}", err);
         }
     }
+    ()
 }
 
 pub fn get_str_from_attribute(attr: &AttributeValue) -> Option<&str> {
@@ -124,15 +130,10 @@ pub fn get_uuid_from_attribute(attr: &AttributeValue) -> Option<Uuid> {
         .and_then(|uuid_result| uuid_result.ok())
 }
 
-pub fn create_dynamo_client() -> SimpleDynamoClient {
-    let credentials = DefaultCredentialsProvider::new().unwrap();
-    DynamoDbClient::new(default_tls_client().unwrap(), credentials, Region::UsWest2)
-}
-
-fn create_book_table(client: &mut DynamoDbClient<DefaultCredentialsProvider, Client>) -> Result<(), CreateTableError> {
+fn create_book_table() -> Result<(), CreateTableError> {
     let provisioning = ProvisionedThroughput {
         read_capacity_units: 1,
-        write_capacity_units: 1
+        write_capacity_units: 1,
     };
     let input = CreateTableInput {
         attribute_definitions: attributes!("book_id" => "S"),
@@ -141,8 +142,9 @@ fn create_book_table(client: &mut DynamoDbClient<DefaultCredentialsProvider, Cli
         table_name: "books".to_string(),
         local_secondary_indexes: None,
         global_secondary_indexes: None,
-        stream_specification: None
+        stream_specification: None,
     };
+    let client = build_db_client!();
     try!(client.create_table(&input));
     Ok(())
 }

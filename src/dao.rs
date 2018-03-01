@@ -1,7 +1,8 @@
 use model::Book;
-use rusoto::dynamodb::*;
-use dynamo_utils::{create_dynamo_client, BOOKS_TABLE, get_uuid_from_attribute, get_str_from_attribute};
+use rusoto_dynamodb::*;
+use dynamo_utils::{BOOKS_TABLE, get_uuid_from_attribute, get_str_from_attribute};
 use uuid::Uuid;
+use std::collections::HashMap;
 
 pub struct BookDao;
 
@@ -20,21 +21,20 @@ impl BookDao {
         request.item = item_map;
         request.table_name = BOOKS_TABLE.to_string();
 
-        try!(create_dynamo_client().put_item(&request));
+        let client = build_db_client!();
+        try!(client.put_item(&request));
         Ok(())
     }
 
-    pub fn get(&mut self, uuid: &Uuid) -> Result<Option<Book>, GetItemError> {
+    pub fn get(&mut self, uuid: &Uuid) -> Result<Book, GetItemError> {
         let mut request = GetItemInput::default();
         request.key = BookDao::create_key(uuid);
         request.table_name = BOOKS_TABLE.to_string();
 
-        match create_dynamo_client().get_item(&request) {
-            Ok(response) => {
-                Ok(BookDao::read_entry(&response.item))
-            }
-            Err(err) => Err(err)
-        }
+        let client = build_db_client!();
+
+        client.get_item(&request)
+            .and_then(|response| BookDao::read_entry(&response.item))
     }
 
 //    pub fn delete(&mut self, uuid: &Uuid) -> Result<(), DeleteItemError> {
@@ -47,7 +47,7 @@ impl BookDao {
 //        Ok(())
 //    }
 
-    fn read_entry(item_map: &Option<AttributeMap>) -> Option<Book> {
+    fn read_entry(item_map: &Option<HashMap<String, AttributeValue>>) -> Result<Book, GetItemError> {
         item_map
             .as_ref()
             .map(|item_map| {
@@ -57,10 +57,12 @@ impl BookDao {
                     title: get_str_from_attribute(item_map.get("title").unwrap()).unwrap().to_string()
                 }
             })
+            .ok_or(GetItemError::Unknown("Unknown error occurred".to_owned()))
+
     }
 
-    fn create_key(uuid: &Uuid) -> Key {
-        let mut key = Key::default();
+    fn create_key(uuid: &Uuid) -> HashMap<String, AttributeValue> {
+        let mut key = HashMap::new();
         key.insert("book_id".to_string(), val!(S => uuid.hyphenated().to_string()));
         key
     }
