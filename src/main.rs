@@ -33,6 +33,12 @@ fn get_book(book_id_wrapper: UuidWrapper) -> Option<Json<Book>> {
     dao.get(&book_id).map(|b| Json(b)).ok()
 }
 
+#[post("/book", data="<book_body>")]
+fn put_book(book_body: Json<Book>) -> status::Accepted<String> {
+    let Json(book) = book_body;
+    let mut dao = BookDao::new();
+    dao.put(&book)
+}
 
 fn main() {
     initialize_db();
