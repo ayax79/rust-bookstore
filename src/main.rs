@@ -1,37 +1,39 @@
-#![feature(plugin)]
-#![plugin(rocket_codegen)]
-
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
 
-use rocket_contrib::Json;
-
+extern crate hyper;
+extern crate futures;
 extern crate rusoto_core;
 extern crate rusoto_dynamodb;
 extern crate uuid;
-extern crate rocket;
-extern crate rocket_contrib;
 
 
 #[macro_use]
 mod dynamo_utils;
 mod model;
 mod dao;
-mod converters;
+mod errors;
+mod request;
 
+use hyper::{Get, Post, StatusCode, Method};
+use hyper::header::ContentLength;
+use hyper::server::{Http, Service, Request, Response};
+use dynamo_utils::initialize_db;
+
+use uuid::Uuid;
 use model::Book;
 use dao::BookDao;
-use dynamo_utils::initialize_db;
-use converters::UuidWrapper;
 
-#[get("/book/<book_id_wrapper>")]
-fn get_book(book_id_wrapper: UuidWrapper) -> Option<Json<Book>> {
-    let UuidWrapper(book_id) = book_id_wrapper;
-    let mut dao = BookDao::new();
-    dao.get(&book_id).map(|b| Json(b)).ok()
-}
+
+//#[get("/book/<book_id_wrapper>")]
+//fn get_book(book_id_wrapper: UuidWrapper) -> Option<Json<Book>> {
+//    let UuidWrapper(book_id) = book_id_wrapper;
+//    let mut dao = BookDao::new();
+//    dao.get(&book_id).map(|b| Json(b)).ok()
+//}
+//
 
 
 fn main() {
