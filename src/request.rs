@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 
 #[derive(Debug,PartialEq)]
-enum BookRequest {
+pub enum BookRequest {
     GetBook(Uuid),
     PostBook
 }

@@ -16,6 +16,7 @@ mod model;
 mod dao;
 mod errors;
 mod request;
+mod service;
 
 use hyper::{Get, Post, StatusCode, Method};
 use hyper::header::ContentLength;
@@ -78,13 +79,13 @@ fn main() {
 //    Iron::new(router).http("0.0.0.0:8080").unwrap();
 }
 
-fn print_put(dao: &mut BookDao, book: &Book) -> () {
-    match dao.put(book) {
-        Ok(_) => {
-            println!("Book {:#?} was added", book.title);
-        }
-        Err(err) => {
-            println!("Could not insert book {:#?} because of {:#?}", book.title, err);
-        }
-    }
-}
+//fn print_put(dao: &mut BookDao, book: &Book) -> () {
+//    match dao.put(book) {
+//        Ok(_) => {
+//            println!("Book {:#?} was added", book.title);
+//        }
+//        Err(err) => {
+//            println!("Could not insert book {:#?} because of {:#?}", book.title, err);
+//        }
+//    }
+//}
