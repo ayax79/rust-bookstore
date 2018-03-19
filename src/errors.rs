@@ -2,14 +2,23 @@ use std::fmt;
 use std::error::Error;
 use uuid::ParseError;
 use rusoto_dynamodb::{PutItemError, GetItemError};
-
+use serde_json::Error as SerdeJsonError;
+use hyper::Error as HyperError;
+use std::convert::From;
 
 #[derive(Debug)]
 pub enum BookServiceError {
     InvalidUuidError(ParseError),
     NotFoundError,
+    /// Wrapper around rusoto put failure
     BookCreateError(PutItemError),
-    BookGetError(GetItemError)
+    /// Wrapper around rusoto get failure
+    BookGetError(GetItemError),
+    /// Wrapper for serde parsing errors
+    BookParseError(SerdeJsonError),
+    BookSerializationError(SerdeJsonError),
+    /// generic hyper error wrapper
+    BookBodyError(HyperError)
 }
 
 impl fmt::Display for BookServiceError {
@@ -27,7 +36,14 @@ impl fmt::Display for BookServiceError {
             },
             BookServiceError::BookGetError(gie) => {
                 write!(f, "Root Cause: {}", gie)
+            },
+            BookServiceError::BookParseError(sje) => {
+                write!(f, "Root Cause: {}", sje)
+            },
+            BookServiceError::BookSerializationError(sje) => {
+                write!(f, "Root Cause: {}", sje)
             }
+
         }
     }
 }
@@ -38,7 +54,9 @@ impl Error for BookServiceError {
             BookServiceError::InvalidUuidError(ref cause) => cause.description(),
             BookServiceError::NotFoundError => "Resource or path could was not found",
             BookServiceError::BookCreateError(ref cause) => cause.description(),
-            BookServiceError::BookGetError(ref cause) => cause.description()
+            BookServiceError::BookGetError(ref cause) => cause.description(),
+            BookServiceError::BookParseError(ref cause) => cause.description(),
+            BookServiceError::BookSerializationError(ref cause) => cause.description()
         }
     }
 
@@ -47,9 +65,17 @@ impl Error for BookServiceError {
             BookServiceError::InvalidUuidError(ref cause) => Some(cause),
             BookServiceError::BookCreateError(ref cause) => Some(cause),
             BookServiceError::BookGetError(ref cause) => Some(cause),
+            BookServiceError::BookParseError(ref cause) => Some(cause),
+            BookServiceError::BookSerializationError(ref cause) => Some(cause),
             _ => None
 
         }
     }
 
+}
+
+impl From<HyperError> for BookServiceError {
+    fn from(err: HyperError) -> Self {
+        BookServiceError::BookBodyError(err)
+    }
 }

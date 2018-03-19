@@ -1,7 +1,9 @@
 use uuid::Uuid;
 use serde::{Serializer, Deserializer};
 use serde::de::{self, Visitor};
+use serde_json;
 use std::fmt;
+use errors::BookServiceError;
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Book {
@@ -12,12 +14,22 @@ pub struct Book {
 }
 
 impl Book {
-    fn new(book_id: Uuid, author: &str, title: &str) -> Self {
+    pub fn new(book_id: Uuid, author: &str, title: &str) -> Self {
         Book {
             book_id: book_id,
             author: author.to_owned(),
             title: title.to_owned(),
         }
+    }
+
+    pub fn from_slice(slice: &[u8]) -> Result<Book, BookServiceError> {
+        serde_json::from_slice(slice)
+            .map_err(BookServiceError::BookParseError)
+    }
+
+    pub fn to_vec(&self) -> Result<Vec<u8>, BookServiceError> {
+        serde_json::to_vec(self)
+            .map_err(BookServiceError::BookSerializationError)
     }
 }
 

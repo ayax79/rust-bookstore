@@ -18,14 +18,8 @@ mod errors;
 mod request;
 mod service;
 
-use hyper::{Get, Post, StatusCode, Method};
-use hyper::header::ContentLength;
-use hyper::server::{Http, Service, Request, Response};
 use dynamo_utils::initialize_db;
 
-use uuid::Uuid;
-use model::Book;
-use dao::BookDao;
 
 
 //#[get("/book/<book_id_wrapper>")]

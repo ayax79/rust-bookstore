@@ -1,7 +1,6 @@
 use std::collections::HashMap;
-use std::thread;
 use futures::{self, Future};
-use futures::stream::{self, Stream};
+use futures::stream::Stream;
 use uuid::Uuid;
 use rusoto_dynamodb::*;
 

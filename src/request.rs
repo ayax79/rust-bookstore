@@ -1,35 +1,45 @@
 use errors::BookServiceError;
 use hyper::{Method, Request};
 use uuid::Uuid;
-use std::str::FromStr;
+use model::Book;
+use futures::{self, Future, Stream};
 
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum BookRequest {
     GetBook(Uuid),
-    PostBook
+    PostBook(Book),
 }
 
 //todo - move to TryFrom when available
 impl BookRequest {
-    pub fn from_request(req: &Request) -> Result<BookRequest, BookServiceError> {
+    pub fn from_request(req: &Request) -> Box<Future<Item=BookRequest, Error=BookServiceError> >{
         match (req.method(), req.path()) {
-            (&Method::Get, _) => {
-                Self::handle_get(req)
-            },
-            (&Method::Post, "/book") => Ok(BookRequest::PostBook),
-            _ => Err(BookServiceError::NotFoundError)
+            (&Method::Get, _) => Self::handle_get(req),
+            (&Method::Post, "/book") => Self::handle_post(req),
+            _ => Box::new(futures::done(Err(BookServiceError::NotFoundError)))
         }
     }
 
-    fn handle_get(req: &Request) -> Result<BookRequest, BookServiceError> {
+    fn handle_get(req: &Request) -> Box<Future<Item=BookRequest, Error=BookServiceError>> {
         let path = req.path();
-        if path.starts_with("/book/") {
+        let result = if path.starts_with("/book/") {
             Self::parse_id(req)
                 .map(|uuid| BookRequest::GetBook(uuid))
         } else {
             Err(BookServiceError::NotFoundError)
-        }
+        };
+        Box::new(futures::done(result))
+    }
+
+    fn handle_post(req: &Request) -> Box<Future<Item=BookRequest, Error=BookServiceError>> {
+        let future = req.body().concat2()
+            .map_err(BookServiceError::from)
+            .and_then(|body| {
+                Book::from_slice(body.as_ref())
+            })
+            .map(BookRequest::PostBook);
+        Box::new(future)
     }
 
     /// Parses the uuid off the request path
@@ -48,7 +58,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_post(){
+    fn test_post() {
         let request = Request::new(Method::Post, FromStr::from_str("/book").unwrap());
         let request_type = BookRequest::from_request(&request).unwrap();
         assert_eq!(BookRequest::PostBook, request_type);
@@ -63,5 +73,4 @@ mod tests {
         let request_type = BookRequest::from_request(&request).unwrap();
         assert_eq!(BookRequest::GetBook(uuid), request_type);
     }
-
 }
