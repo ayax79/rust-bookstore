@@ -1,45 +1,37 @@
 use errors::BookServiceError;
 use hyper::{Method, Request};
 use uuid::Uuid;
-use model::Book;
-use futures::{self, Future, Stream};
 
 
 #[derive(Debug, PartialEq)]
 pub enum BookRequest {
     GetBook(Uuid),
-    PostBook(Book),
+    PostBook,
 }
 
 //todo - move to TryFrom when available
 impl BookRequest {
-    pub fn from_request(req: &Request) -> Box<Future<Item=BookRequest, Error=BookServiceError> >{
+
+    pub fn from_request(req: &Request) -> Result<BookRequest, BookServiceError> {
         match (req.method(), req.path()) {
             (&Method::Get, _) => Self::handle_get(req),
-            (&Method::Post, "/book") => Self::handle_post(req),
-            _ => Box::new(futures::done(Err(BookServiceError::NotFoundError)))
+            (&Method::Post, "/book") => Self::handle_post(),
+            _ => Err(BookServiceError::NotFoundError)
         }
     }
 
-    fn handle_get(req: &Request) -> Box<Future<Item=BookRequest, Error=BookServiceError>> {
+    fn handle_get(req: &Request) ->  Result<BookRequest, BookServiceError> {
         let path = req.path();
-        let result = if path.starts_with("/book/") {
+        if path.starts_with("/book/") {
             Self::parse_id(req)
                 .map(|uuid| BookRequest::GetBook(uuid))
         } else {
             Err(BookServiceError::NotFoundError)
-        };
-        Box::new(futures::done(result))
+        }
     }
 
-    fn handle_post(req: &Request) -> Box<Future<Item=BookRequest, Error=BookServiceError>> {
-        let future = req.body().concat2()
-            .map_err(BookServiceError::from)
-            .and_then(|body| {
-                Book::from_slice(body.as_ref())
-            })
-            .map(BookRequest::PostBook);
-        Box::new(future)
+    fn handle_post() -> Result<BookRequest, BookServiceError> {
+        Ok(BookRequest::PostBook)
     }
 
     /// Parses the uuid off the request path
@@ -50,6 +42,7 @@ impl BookRequest {
             .map(|index| path[(index + 1)..].to_owned())
             .and_then(|ref sub_string| Uuid::parse_str(sub_string).map_err(BookServiceError::InvalidUuidError))
     }
+
 }
 
 #[cfg(test)]

@@ -84,22 +84,22 @@ pub fn initialize_db() {
     let request = DescribeTableInput { table_name: "books".to_string() };
     match dynamodb.describe_table(&request) {
         Ok(_) => {
-            println!("books table exists, continuing.");
+            info!("books table exists, continuing.");
         }
         Err(DescribeTableError::ResourceNotFound(msg)) => {
-            println!("An error occurred ${:#?}", msg);
-            println!("books table may not exist, creating");
+            info!("An error occurred ${:#?}", msg);
+            info!("books table may not exist, creating");
             match create_book_table() {
                 Ok(_) => {
-                    println!("successfully created books table")
+                    info!("successfully created books table")
                 }
                 Err(err) => {
-                    println!("Could not create books table ${:#?}", err)
+                    info!("Could not create books table ${:#?}", err)
                 }
             }
         }
         Err(err) => {
-            println!("An error occurred ${:#?}", err);
+            info!("An error occurred ${:#?}", err);
         }
     }
     ()

@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use futures::{self, Future};
-use futures::stream::Stream;
 use uuid::Uuid;
 use rusoto_dynamodb::*;
 
@@ -18,7 +17,7 @@ impl BookDao {
         BookDao
     }
 
-    pub fn put(&mut self, entry: &Book) -> Box<Future<Item=(), Error=BookServiceError>> {
+    pub fn put(&mut self, entry: &Book) -> impl Future<Item=(), Error=BookServiceError> {
         let item_map = item_map!(
             "book_id".to_string() => val!(S => entry.book_id.hyphenated().to_string()),
             "author".to_string() => val!(S => entry.author),
@@ -33,11 +32,11 @@ impl BookDao {
             .map(|_| ())
             .map_err(|err| BookServiceError::BookCreateError(err));
 
-        Box::new(futures::done(result))
+        futures::done(result)
     }
 
 
-    pub fn get(&mut self, uuid: &Uuid) -> Box<Future<Item=Book, Error=BookServiceError>> {
+    pub fn get(&mut self, uuid: &Uuid) -> impl Future<Item=Book, Error=BookServiceError> {
         let mut request = GetItemInput::default();
         request.key = BookDao::create_key(uuid);
         request.table_name = BOOKS_TABLE.to_string();
@@ -48,7 +47,7 @@ impl BookDao {
             .and_then(|response| BookDao::read_entry(&response.item))
             .map_err(|err| BookServiceError::BookGetError(err));
 
-        Box::new(futures::done(result))
+        futures::done(result)
     }
 
 

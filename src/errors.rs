@@ -24,24 +24,27 @@ pub enum BookServiceError {
 impl fmt::Display for BookServiceError {
 
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            BookServiceError::InvalidUuidError(pe) => {
+        match self {
+            &BookServiceError::InvalidUuidError(ref pe) => {
                 write!(f, "Root Cause: {}", pe)
             },
-            BookServiceError::NotFoundError => {
+            &BookServiceError::NotFoundError => {
                 write!(f, "Resource or path was not found")
             },
-            BookServiceError::BookCreateError(pie) => {
+            &BookServiceError::BookCreateError(ref pie) => {
                 write!(f, "Root Cause: {}", pie)
             },
-            BookServiceError::BookGetError(gie) => {
+            &BookServiceError::BookGetError(ref gie) => {
                 write!(f, "Root Cause: {}", gie)
             },
-            BookServiceError::BookParseError(sje) => {
+            &BookServiceError::BookParseError(ref sje) => {
                 write!(f, "Root Cause: {}", sje)
             },
-            BookServiceError::BookSerializationError(sje) => {
+            &BookServiceError::BookSerializationError(ref sje) => {
                 write!(f, "Root Cause: {}", sje)
+            },
+            &BookServiceError::BookBodyError(ref he) => {
+                write!(f, "Root Cause: {}", he)
             }
 
         }
@@ -56,7 +59,8 @@ impl Error for BookServiceError {
             BookServiceError::BookCreateError(ref cause) => cause.description(),
             BookServiceError::BookGetError(ref cause) => cause.description(),
             BookServiceError::BookParseError(ref cause) => cause.description(),
-            BookServiceError::BookSerializationError(ref cause) => cause.description()
+            BookServiceError::BookSerializationError(ref cause) => cause.description(),
+            BookServiceError::BookBodyError(ref cause) => cause.description()
         }
     }
 
@@ -67,6 +71,7 @@ impl Error for BookServiceError {
             BookServiceError::BookGetError(ref cause) => Some(cause),
             BookServiceError::BookParseError(ref cause) => Some(cause),
             BookServiceError::BookSerializationError(ref cause) => Some(cause),
+            BookServiceError::BookBodyError(ref cause) => Some(cause),
             _ => None
 
         }
@@ -77,5 +82,12 @@ impl Error for BookServiceError {
 impl From<HyperError> for BookServiceError {
     fn from(err: HyperError) -> Self {
         BookServiceError::BookBodyError(err)
+    }
+}
+
+impl From<BookServiceError> for HyperError {
+    fn from(_err: BookServiceError) -> Self {
+        // not sure this is the best choice
+        HyperError::Incomplete
     }
 }

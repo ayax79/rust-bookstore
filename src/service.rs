@@ -1,71 +1,63 @@
-use futures::{self, Future};
+use futures::Future;
 
 use hyper::{self, StatusCode};
 use hyper::header::ContentType;
 use hyper::server::{Service, Request, Response};
+use futures::{self, Stream};
 
 use request::BookRequest;
 use errors::BookServiceError;
 use dao::BookDao;
+use model::Book;
 
-struct BookService;
+pub struct BookService;
 
-impl BookService {
-    fn handle_request(&self, book_request: &BookRequest) -> Box<Future<Item=Response, Error=BookServiceError>> {
-        let mut dao = BookDao::new();
-        match book_request {
-            &BookRequest::GetBook(uuid) => {
+impl Service for BookService {
+    type Request = Request;
+    type Response = Response;
+    type Error = hyper::Error;
+    type Future = Box<Future<Item=Self::Response, Error=Self::Error>>;
+
+    fn call(&self, req: Self::Request) -> Self::Future {
+        debug!("Received: {} {}", req.method(), req.path());
+        match BookRequest::from_request(&req) {
+            Ok(BookRequest::GetBook(uuid)) => {
+                let mut dao = BookDao::new();
                 let f = dao.get(&uuid)
                     .and_then(|book| book.to_vec())
                     .map(|v| {
                         Response::new()
                             .with_header(ContentType::json())
                             .with_body(v)
-                    });
-                Box::new(f)
+                    })
+                    .map_err(From::from);
 
-            }
-            &BookRequest::PostBook(book) => {
-                let f = dao.put(&book)
+                Box::new(f)
+            },
+            Ok(BookRequest::PostBook) => {
+                let f = req.body().concat2()
+                    .and_then(|body| {
+                        debug!("body: {:?}", &body);
+                        let mut dao = BookDao::new();
+                        Book::from_slice(body.as_ref())
+                            .map(|ref book| dao.put(book))
+                            .map_err(From::from)
+                    })
                     .map(|_| {
                         Response::new()
                             .with_status(StatusCode::Accepted)
                     });
                 Box::new(f)
+            },
+            Err(BookServiceError::NotFoundError) => {
+                Box::new(futures::done(Ok(Response::new()
+                    .with_status(StatusCode::NotFound))))
+            },
+            Err(_) => {
+                Box::new(futures::done(Ok(Response::new()
+                    .with_status(StatusCode::BadRequest))))
             }
         }
-    }
-
-    fn handle_error(&self, err: &BookServiceError) -> Response {
-        match err {
-            &BookServiceError::NotFoundError => {
-                Response::new()
-                    .with_status(StatusCode::NotFound)
-            }
-            _ => {
-                Response::new()
-                    .with_status(StatusCode::BadRequest)
-            }
-        }
-    }
-}
-
-impl Service for BookService {
-    type Request = Request;
-    type Response = Response;
-    type Error = hyper::Error;
-    type Future =  Box<Future<Item = Self::Response, Error = Self::Error>>;
-
-    fn call(&self, req: Self::Request) -> Self::Future {
-        let f = BookRequest::from_request(&req)
-            .and_then(|ref req| self.handle_request(req))
-            .or_else(|ref err| futures::done(Ok(self.handle_error(err))))
-            .map_err(|err:BookServiceError| {
-                // this should have already been handled
-                // not sure if this the best return type, but it shouldn't happen anyways
-                hyper::Error::Incomplete
-            });
-        Box::new(f)
     }
 }
 
