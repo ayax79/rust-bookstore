@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use futures::{self, Future};
 use uuid::Uuid;
 use rusoto_dynamodb::*;
 
@@ -17,7 +16,7 @@ impl BookDao {
         BookDao
     }
 
-    pub fn put(&mut self, entry: &Book) -> impl Future<Item=(), Error=BookServiceError> {
+    pub fn put(&mut self, entry: &Book) -> Result<(), BookServiceError> {
         let item_map = item_map!(
             "book_id".to_string() => val!(S => entry.book_id.hyphenated().to_string()),
             "author".to_string() => val!(S => entry.author),
@@ -28,26 +27,22 @@ impl BookDao {
         request.table_name = BOOKS_TABLE.to_string();
 
         let client = build_db_client!();
-        let result = client.put_item(&request)
+        client.put_item(&request)
             .map(|_| ())
-            .map_err(|err| BookServiceError::BookCreateError(err));
-
-        futures::done(result)
+            .map_err(|err| BookServiceError::BookCreateError(err))
     }
 
 
-    pub fn get(&mut self, uuid: &Uuid) -> impl Future<Item=Book, Error=BookServiceError> {
+    pub fn get(&mut self, uuid: &Uuid) -> Result<Book, BookServiceError> {
         let mut request = GetItemInput::default();
         request.key = BookDao::create_key(uuid);
         request.table_name = BOOKS_TABLE.to_string();
 
         let client = build_db_client!();
 
-        let result = client.get_item(&request)
+        client.get_item(&request)
             .and_then(|response| BookDao::read_entry(&response.item))
-            .map_err(|err| BookServiceError::BookGetError(err));
-
-        futures::done(result)
+            .map_err(|err| BookServiceError::BookGetError(err))
     }
 
 
@@ -65,7 +60,7 @@ impl BookDao {
         item_map
             .as_ref()
             .map(|item_map| {
-                Book {
+                Book{
                     book_id: get_uuid_from_attribute(item_map.get("book_id").unwrap()).unwrap(),
                     author: get_str_from_attribute(item_map.get("author").unwrap()).unwrap().to_string(),
                     title: get_str_from_attribute(item_map.get("title").unwrap()).unwrap().to_string(),

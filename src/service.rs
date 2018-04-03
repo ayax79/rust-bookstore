@@ -1,9 +1,9 @@
-use futures::Future;
-
+use std::str;
 use hyper::{self, StatusCode};
 use hyper::header::ContentType;
 use hyper::server::{Service, Request, Response};
-use futures::{self, Stream};
+use futures::{self, Stream, Future};
+use log::Level;
 
 use request::BookRequest;
 use errors::BookServiceError;
@@ -32,32 +32,43 @@ impl Service for BookService {
                     })
                     .map_err(From::from);
 
-                Box::new(f)
+                Box::new(futures::done(f))
             },
             Ok(BookRequest::PostBook) => {
                 let f = req.body().concat2()
-                    .and_then(|body| {
-                        debug!("body: {:?}", &body);
+                    .map(|body| {
+                        if log_enabled!(Level::Debug) {
+                            debug!("body: {:?}", str::from_utf8(&body));
+                        }
+
                         let mut dao = BookDao::new();
                         Book::from_slice(body.as_ref())
-                            .map(|ref book| dao.put(book))
-                            .map_err(From::from)
+                            .and_then(|ref book| {
+                                dao.put(book)
+                                    .map(|_| StatusCode::Accepted)
+                            })
+                            .unwrap_or(StatusCode::BadRequest)
                     })
-                    .map(|_| {
+                    .map(|status_code| {
                         Response::new()
-                            .with_status(StatusCode::Accepted)
+                            .with_status(status_code)
                     });
                 Box::new(f)
             },
             Err(BookServiceError::NotFoundError) => {
+                debug!("Path {} : NotFoundError", req.path());
                 Box::new(futures::done(Ok(Response::new()
                     .with_status(StatusCode::NotFound))))
             },
             Err(_) => {
-                Box::new(futures::done(Ok(Response::new()
-                    .with_status(StatusCode::BadRequest))))
+                debug!("Path {} : NotFoundError", req.path());
+                Box::new(futures::done(Ok(bad_request())))
             }
         }
     }
+}
+
+fn bad_request() -> Response {
+    Response::new().with_status(StatusCode::BadRequest)
 }
 

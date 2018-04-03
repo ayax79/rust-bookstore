@@ -23,8 +23,11 @@ impl Book {
     }
 
     pub fn from_slice(slice: &[u8]) -> Result<Book, BookServiceError> {
-        serde_json::from_slice(slice)
-            .map_err(BookServiceError::BookParseError)
+        trace!("from_slice called!");
+        let result = serde_json::from_slice(slice)
+            .map_err(BookServiceError::BookParseError);
+        trace!("Book parsed from slice: {:?}", result);
+        result
     }
 
     pub fn to_vec(&self) -> Result<Vec<u8>, BookServiceError> {
@@ -52,7 +55,6 @@ fn deserialize_uuid<'de, D>(d: D) -> Result<Uuid, D::Error> where D: Deserialize
 
         fn visit_str<E>(self, v: &str) -> Result<Self::Value, E> where
             E: de::Error {
-            println!("received: {:?}", v);
             Uuid::parse_str(v).map_err(de::Error::custom)
         }
     }
