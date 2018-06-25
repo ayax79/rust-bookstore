@@ -14,6 +14,8 @@ pub struct Book {
 }
 
 impl Book {
+
+    #[allow(dead_code)]
     pub fn new(book_id: Uuid, author: &str, title: &str) -> Self {
         Book {
             book_id: book_id,

@@ -2,7 +2,6 @@ use errors::BookServiceError;
 use hyper::{Method, Request};
 use uuid::Uuid;
 
-
 #[derive(Debug, PartialEq)]
 pub enum BookRequest {
     GetBook(Uuid),
@@ -48,6 +47,7 @@ impl BookRequest {
 #[cfg(test)]
 mod tests {
     use hyper::{Request, Method};
+    use std::str::FromStr;
     use super::*;
 
     #[test]

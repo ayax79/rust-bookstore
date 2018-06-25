@@ -21,4 +21,10 @@ serde = "1.0"
 serde_json = "1.0"
 serde_derive = "1.0"
 log = "0.4"
+
 env_logger = "0.4"
+
+rust-eureka = "0.1.1"
+config = "0.8"
+pnet = "0.21.0"
+ipnetwork = "0.12"

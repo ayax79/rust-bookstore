@@ -1,5 +1,3 @@
-#![feature(conservative_impl_trait)]
-
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
@@ -13,6 +11,10 @@ extern crate uuid;
 #[macro_use]
 extern crate log;
 extern crate env_logger;
+extern crate config;
+extern crate rust_eureka;
+extern crate pnet;
+extern crate ipnetwork;
 
 #[macro_use]
 mod dynamo_utils;
@@ -21,18 +23,43 @@ mod dao;
 mod errors;
 mod request;
 mod service;
+mod settings;
+mod network;
+mod eureka;
+#[macro_use]
+mod server;
 
 use dynamo_utils::initialize_db;
-use hyper::server::Http;
+use settings::Settings;
+use network::NetworkInfo;
+use hyper::server::{Http, Server};
+use server::build_socket;
 use service::BookService;
 
-fn main() {
-    env_logger::init();
+fn initialize(settings: &Settings) {
+    let network_info = NetworkInfo::new();
+    let server_ip = network_info.map(|ni| ni.ip_address);
 
     initialize_db();
-    let add_str = "127.0.0.1:3000";
-    let addr = add_str.parse().unwrap();
-    info!("Starting BookService on {}", add_str);
+
+    let addr = build_socket(settings, &server_ip);
     let server = Http::new().bind(&addr, || Ok(BookService)).unwrap();
-    server.run().unwrap();
+
+    println!("Starting BookService on {}", addr);
+    server.run();
+}
+
+fn main() {
+    let result = env_logger::init();
+    debug!("Log initialization: {:?}", &result);
+
+    match Settings::new() {
+        Ok(settings) => {
+            initialize(&settings);
+        },
+        Err(e) => {
+            panic!("could not initialize configuration: {}", e)
+        }
+    }
+
 }

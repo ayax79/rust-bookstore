@@ -81,7 +81,7 @@ macro_rules! build_db_client {
 
 pub fn initialize_db() {
     let dynamodb = build_db_client!();
-    let request = DescribeTableInput { table_name: "books".to_string() };
+    let request = DescribeTableInput { table_name: BOOKS_TABLE.to_string() };
     match dynamodb.describe_table(&request) {
         Ok(_) => {
             info!("books table exists, continuing.");
