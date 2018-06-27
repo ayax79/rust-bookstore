@@ -1,15 +1,21 @@
 use pnet::datalink::{self, NetworkInterface};
 use ipnetwork::IpNetwork;
+use settings::Settings;
+use std::net::SocketAddr;
 
+const DEFAULT_PORT: u16 = 8080;
+const DEFAULT_HOST: &'static str = "127.0.0.1";
+
+/// Information about the server this microservice is hosted on
 #[derive(Debug)]
 pub struct NetworkInfo {
-    pub ip_address: String
+    pub ip_address: Option<String>
 }
 
 impl NetworkInfo {
-    pub fn new() -> Option<Self> {
+    pub fn new() -> Self {
         // This isn't perfect. Right now we just try to find the first ip4 non-loopback ip address
-        datalink::interfaces()
+        let ip_address = datalink::interfaces()
             .into_iter()
             .find(NetworkInfo::is_valid_interface)     // find a device that isn't a loopback device
             .and_then(|interface| {
@@ -22,11 +28,26 @@ impl NetworkInfo {
                         }
                     })
             })
-            .map(|ip| {
-                NetworkInfo {
-                    ip_address: ip.ip().to_string()
-                }
-            })
+            .map(|ip| ip.ip().to_string());
+
+        NetworkInfo {
+            ip_address
+        }
+    }
+
+    pub fn build_server_socket_info(&self, settings: &Settings) -> SocketInfo {
+        let ip_address = settings.server_address.to_owned()
+            .or(self.ip_address.to_owned())
+            .unwrap_or(DEFAULT_HOST.to_string());
+        let port = settings.server_port.unwrap_or(DEFAULT_PORT);
+        let full_addr = format!("{}:{}", ip_address, port);
+        let socket_addr = full_addr.parse().unwrap();
+
+        SocketInfo {
+            ip_address,
+            port,
+            socket_addr
+        }
     }
 
     fn has_ip4(intf: &NetworkInterface) -> bool {
@@ -42,6 +63,23 @@ impl NetworkInfo {
 
 }
 
+/// Generic information about a socket
+#[derive(Debug)]
+pub struct SocketInfo {
+    pub ip_address: String,
+    pub port: u16,
+    pub socket_addr: SocketAddr
+}
+
+impl SocketInfo {
+
+    pub fn base_url(&self) -> String {
+        let url = format!("http://{}:{}", self.ip_address, self.port);
+        url.to_string()
+    }
+
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -49,7 +87,8 @@ mod tests {
     #[test]
     fn test_get_ip_address() {
         let ni = NetworkInfo::new();
-        assert!(ni.is_some());
-        println!("ip network {:?}", ni.unwrap());
+        let ip = ni.ip_address;
+        assert!(ip.is_some());
+        println!("ip network {:?}", ip.unwrap());
     }
 }

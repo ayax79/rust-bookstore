@@ -1,8 +1,11 @@
+#![feature(futures_api)]
+
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
 
+extern crate tokio_core;
 extern crate hyper;
 extern crate futures;
 extern crate rusoto_core;
@@ -26,27 +29,34 @@ mod service;
 mod settings;
 mod network;
 mod eureka;
-#[macro_use]
-mod server;
 
 use dynamo_utils::initialize_db;
 use settings::Settings;
 use network::NetworkInfo;
-use hyper::server::{Http, Server};
-use server::build_socket;
+use hyper::server::Http;
 use service::BookService;
+use tokio_core::reactor::Core;
+use eureka::EurekaHandler;
 
 fn initialize(settings: &Settings) {
     let network_info = NetworkInfo::new();
-    let server_ip = network_info.map(|ni| ni.ip_address);
+    let socket_info = network_info.build_server_socket_info(settings);
 
     initialize_db();
+    let mut core = Core::new().unwrap();
+    let handle = core.handle();
 
-    let addr = build_socket(settings, &server_ip);
-    let server = Http::new().bind(&addr, || Ok(BookService)).unwrap();
+    let eureka_handler = EurekaHandler::new(&handle, settings.clone(), &socket_info);
+    for reg_future in eureka_handler.register() {
+        let result = core.run(reg_future);
+        info!("Eureka registration: {:?}", result);
+    }
 
-    println!("Starting BookService on {}", addr);
-    server.run();
+    let server = Http::new().bind(&socket_info.socket_addr, || Ok(BookService)).unwrap();
+
+    println!("Starting BookService on {}", &socket_info.port);
+    let result = server.run();
+    debug!("server result {:?} ", &result)
 }
 
 fn main() {

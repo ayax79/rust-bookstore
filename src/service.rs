@@ -55,6 +55,10 @@ impl Service for BookService {
                     });
                 Box::new(f)
             },
+            Ok(BookRequest::Health) => {
+                let response =Ok(Response::new().with_status(StatusCode::Ok));
+                Box::new(futures::done(response))
+            },
             Err(BookServiceError::NotFoundError) => {
                 debug!("Path {} : NotFoundError", req.path());
                 Box::new(futures::done(Ok(Response::new()

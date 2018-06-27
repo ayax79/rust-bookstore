@@ -1,10 +1,12 @@
 use config::{ConfigError, Config, Environment};
 
 
+#[derive(Debug,Clone)]
 pub struct Settings {
     pub server_address: Option<String>,
     pub server_port: Option<u16>,
-    pub eureka_url: Option<String>
+    pub eureka_url: Option<String>,
+    pub hostname: Option<String>
 }
 
 impl Settings {
@@ -15,10 +17,12 @@ impl Settings {
                 let server_address = config.get("serveraddress").ok();
                 let server_port = config.get("serverport").ok();
                 let eureka_url = config.get("eureka_url").ok();
+                let hostname = config.get("hostname").ok();
                 Settings {
                     server_address,
                     server_port,
-                    eureka_url: eureka_url
+                    eureka_url,
+                    hostname
                 }
             })
     }

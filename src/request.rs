@@ -6,6 +6,7 @@ use uuid::Uuid;
 pub enum BookRequest {
     GetBook(Uuid),
     PostBook,
+    Health
 }
 
 //todo - move to TryFrom when available
@@ -24,6 +25,8 @@ impl BookRequest {
         if path.starts_with("/book/") {
             Self::parse_id(req)
                 .map(|uuid| BookRequest::GetBook(uuid))
+        } else if path.starts_with("/health") {
+            Ok(BookRequest::Health)
         } else {
             Err(BookServiceError::NotFoundError)
         }
