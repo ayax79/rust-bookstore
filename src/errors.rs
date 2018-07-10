@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, io};
 use std::error::Error;
 use uuid::ParseError;
 use rusoto_dynamodb::{PutItemError, GetItemError};
@@ -85,9 +85,8 @@ impl From<HyperError> for BookServiceError {
     }
 }
 
-impl From<BookServiceError> for HyperError {
-    fn from(_err: BookServiceError) -> Self {
-        // not sure this is the best choice
-        HyperError::Incomplete
+impl From<BookServiceError> for io::Error {
+    fn from(err: BookServiceError) -> Self {
+        io::Error::new(io::ErrorKind::Other, err)
     }
 }
