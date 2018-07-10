@@ -31,10 +31,12 @@ mod eureka;
 use dynamo_utils::initialize_db;
 use settings::Settings;
 use network::NetworkInfo;
-use hyper::server::Http;
-use service::BookService;
+use hyper::server::Server;
+use hyper::service::service_fn;
+use service::book_service;
 use tokio_core::reactor::Core;
 use eureka::EurekaHandler;
+use futures::Future;
 
 fn initialize(settings: &Settings) {
     let network_info = NetworkInfo::new();
@@ -50,11 +52,18 @@ fn initialize(settings: &Settings) {
         info!("Eureka registration: {:?}", result);
     }
 
-    let server = Http::new().bind(&socket_info.socket_addr, || Ok(BookService)).unwrap();
+    let server = Server::bind(&socket_info.socket_addr)
+        .serve(|| service_fn(book_service))
+        .map_err(|err| eprintln!("server error: {}", err));
 
     println!("Starting BookService on {}", &socket_info.port);
-    let result = server.run();
-    debug!("server result {:?} ", &result)
+
+    hyper::rt::run(server)
+
+//    let server = Server::bind(&socket_info.socket_addr, || Ok(BookService)).unwrap();
+
+//    let result = server.run();
+//    debug!("server result {:?} ", &result)
 }
 
 fn main() {
