@@ -49,8 +49,7 @@ impl BookRequest {
 
 #[cfg(test)]
 mod tests {
-    use hyper::{Request, Method};
-    use std::str::FromStr;
+    use hyper::Request;
     use super::*;
 
     #[test]
