@@ -1,77 +1,74 @@
-use std::collections::HashMap;
 use uuid::Uuid;
-use rusoto_dynamodb::*;
 
 use errors::BookServiceError;
 
-use dynamo_utils::{BOOKS_TABLE, get_uuid_from_attribute, get_str_from_attribute};
+use redis::{self, Commands, Client, PipelineCommands};
 use model::Book;
+use settings::Settings;
+use std::collections::HashMap;
 
+const AUTHOR: &'static str = "author";
+const TITLE: &'static str = "title";
 
-
-pub struct BookDao;
+#[derive(Debug, Clone)]
+pub struct BookDao {
+    client: Client
+}
 
 impl BookDao {
-    pub fn new() -> BookDao {
-        BookDao
-    }
-
-    pub fn put(&mut self, entry: &Book) -> Result<(), BookServiceError> {
-        let item_map = item_map!(
-            "book_id".to_string() => val!(S => entry.book_id.hyphenated().to_string()),
-            "author".to_string() => val!(S => entry.author),
-            "title".to_string() => val!(S => entry.title));
-
-        let mut request = PutItemInput::default();
-        request.item = item_map;
-        request.table_name = BOOKS_TABLE.to_string();
-
-        let client = build_db_client!();
-        client.put_item(&request)
-            .map(|_| ())
-            .map_err(|err| BookServiceError::BookCreateError(err))
-    }
-
-
-    pub fn get(&mut self, uuid: &Uuid) -> Result<Book, BookServiceError> {
-        let mut request = GetItemInput::default();
-        request.key = BookDao::create_key(uuid);
-        request.table_name = BOOKS_TABLE.to_string();
-
-        let client = build_db_client!();
-
-        client.get_item(&request)
-            .and_then(|response| BookDao::read_entry(&response.item))
-            .map_err(|err| BookServiceError::BookGetError(err))
-    }
-
-
-//    pub fn delete(&mut self, uuid: &Uuid) -> Result<(), DeleteItemError> {
-//        let key = BookDao::create_key(uuid);
-//        let mut request = DeleteRequest::default();
-//        request.key = key;
-//        // request.TableName = BOOKS_TABLE.to_string(); not yet implemented
-//
-//        // IT doesn't appear this is fully implemented yet.
-//        Ok(())
-//    }
-
-    fn read_entry(item_map: &Option<HashMap<String, AttributeValue>>) -> Result<Book, GetItemError> {
-        item_map
-            .as_ref()
-            .map(|item_map| {
-                Book{
-                    book_id: get_uuid_from_attribute(item_map.get("book_id").unwrap()).unwrap(),
-                    author: get_str_from_attribute(item_map.get("author").unwrap()).unwrap().to_string(),
-                    title: get_str_from_attribute(item_map.get("title").unwrap()).unwrap().to_string(),
+    pub fn new(settings: &Settings) -> Result<BookDao, BookServiceError> {
+        Client::open(settings.redis_url.as_ref())
+            .map_err(|e| BookServiceError::DaoInitializationError(e))
+            .map(|client| {
+                BookDao {
+                    client
                 }
             })
-            .ok_or(GetItemError::Unknown("Unknown error occurred".to_owned()))
     }
 
-    fn create_key(uuid: &Uuid) -> HashMap<String, AttributeValue> {
-        let mut key = HashMap::new();
-        key.insert("book_id".to_string(), val!(S => uuid.hyphenated().to_string()));
-        key
+    pub fn put(&self, entry: &Book) -> Result<(), BookServiceError> {
+        self.client.get_connection()
+            .and_then(|conn| {
+                let key = id_key(&entry.book_id);
+                redis::pipe()
+                    .atomic()
+                    .hset(key.to_owned(), AUTHOR, entry.author.to_owned())
+                    .hset(key.to_owned(), TITLE, entry.title.to_owned())
+                    .query(&conn)
+            })
+            .map_err(|re| BookServiceError::BookCreateError(re))
     }
+
+     pub fn get(&self, uuid: &Uuid) -> Result<Book, BookServiceError> {
+         let key = id_key(uuid);
+         self.client.get_connection()
+             .and_then(|conn| conn.hgetall(key.to_owned()))
+             .map_err(|e| BookServiceError::BookGetError(e))
+             .and_then(|ref hm: HashMap<String, String>| book_from_map(key.as_ref(), hm))
+     }
+
+}
+
+fn book_from_map(key: &str, hm: &HashMap<String, String>) -> Result<Book, BookServiceError> {
+    uuid_from_key(key)
+        .and_then(|book_id| {
+            let author = hm.get(AUTHOR).ok_or(BookServiceError::MissingFieldError(AUTHOR.to_string()))?;
+            let title = hm.get(TITLE).ok_or(BookServiceError::MissingFieldError(TITLE.to_string()))?;
+            Ok(Book{
+                book_id,
+                author: author.to_owned(),
+                title: title.to_owned(),
+            })
+        })
+}
+
+fn id_key(uuid: &Uuid) -> String {
+    "BOOK-".to_string() +
+        uuid.hyphenated().to_string().as_ref()
+}
+
+fn uuid_from_key(key: &str) -> Result<Uuid, BookServiceError> {
+    let minus_prefix = &key[4..];
+    Uuid::parse_str(minus_prefix)
+        .map_err(BookServiceError::from)
 }

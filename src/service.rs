@@ -10,15 +10,16 @@ use request::BookRequest;
 use errors::BookServiceError;
 use dao::BookDao;
 use model::Book;
+use settings::Settings;
 
 type BookSvcFuture = Box<Future<Item=Response<Body>, Error=io::Error> + Send>;
 
-pub fn book_service(req: Request<Body>) -> BookSvcFuture {
+pub fn book_service(settings: &'static Settings, req: Request<Body>) -> BookSvcFuture {
     debug!("Received: {} {}", req.method(), req.uri().path());
     match BookRequest::from_request(&req) {
         Ok(BookRequest::GetBook(uuid)) => {
-            let mut dao = BookDao::new();
-            let f = dao.get(&uuid)
+            let result = BookDao::new(settings)
+                .and_then(|dao| dao.get(&uuid))
                 .and_then(|book| book.to_vec())
                 .map(Body::from)
                 .map(|v| {
@@ -30,19 +31,20 @@ pub fn book_service(req: Request<Body>) -> BookSvcFuture {
                 .or_else(|err: BookServiceError| server_error(err.description()))
                 .map_err(From::from);
 
-            Box::new(future::result(f))
+            Box::new(future::result(result))
         },
         Ok(BookRequest::PostBook) => {
+            let s = settings.clone();
             let f = req.into_body().concat2()
-                .map(|body| {
+                .map(move |body| {
                     if log_enabled!(Level::Debug) {
                         debug!("body: {:?}", str::from_utf8(body.as_ref()));
                     }
 
-                    let mut dao = BookDao::new();
                     Book::from_slice(body.as_ref())
                         .and_then(|ref book| {
-                            dao.put(book)
+                            BookDao::new(&s)
+                                .and_then(|dao| dao.put(book))
                                 .map(|_| 202)
                         })
                         .unwrap_or(400)
@@ -77,6 +79,7 @@ pub fn book_service(req: Request<Body>) -> BookSvcFuture {
             Box::new(future::ok(bad_request()))
         }
     }
+
 }
 
 fn bad_request() -> Response<Body> {

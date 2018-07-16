@@ -1,24 +1,28 @@
 use std::{fmt, io};
 use std::error::Error;
 use uuid::ParseError;
-use rusoto_dynamodb::{PutItemError, GetItemError};
 use serde_json::Error as SerdeJsonError;
 use hyper::Error as HyperError;
 use std::convert::From;
+use redis::RedisError;
+use config::ConfigError;
 
 #[derive(Debug)]
 pub enum BookServiceError {
     InvalidUuidError(ParseError),
     NotFoundError,
-    /// Wrapper around rusoto put failure
-    BookCreateError(PutItemError),
-    /// Wrapper around rusoto get failure
-    BookGetError(GetItemError),
+    /// Wrapper around redis put failure
+    BookCreateError(RedisError),
+    /// Wrapper around redis get failure
+    BookGetError(RedisError),
     /// Wrapper for serde parsing errors
     BookParseError(SerdeJsonError),
     BookSerializationError(SerdeJsonError),
     /// generic hyper error wrapper
-    BookBodyError(HyperError)
+    BookBodyError(HyperError),
+    DaoInitializationError(RedisError),
+    MissingFieldError(String),
+    SettingsError(ConfigError)
 }
 
 impl fmt::Display for BookServiceError {
@@ -45,8 +49,16 @@ impl fmt::Display for BookServiceError {
             },
             &BookServiceError::BookBodyError(ref he) => {
                 write!(f, "Root Cause: {}", he)
+            },
+            &BookServiceError::DaoInitializationError(ref e) => {
+                write!(f, "Root Cause: {}", e)
+            },
+            &BookServiceError::MissingFieldError(ref field) => {
+                write!(f, "Invalid Book, missing field {} ", field)
+            },
+            &BookServiceError::SettingsError(ref e) => {
+                write!(f, "Configuration Issue - Root Cause: {}", e)
             }
-
         }
     }
 }
@@ -60,7 +72,10 @@ impl Error for BookServiceError {
             BookServiceError::BookGetError(ref cause) => cause.description(),
             BookServiceError::BookParseError(ref cause) => cause.description(),
             BookServiceError::BookSerializationError(ref cause) => cause.description(),
-            BookServiceError::BookBodyError(ref cause) => cause.description()
+            BookServiceError::BookBodyError(ref cause) => cause.description(),
+            BookServiceError::DaoInitializationError(ref cause) => cause.description(),
+            BookServiceError::SettingsError(ref cause) => cause.description(),
+            BookServiceError::MissingFieldError(_) => "Book entry was missing a field"
         }
     }
 
@@ -72,6 +87,8 @@ impl Error for BookServiceError {
             BookServiceError::BookParseError(ref cause) => Some(cause),
             BookServiceError::BookSerializationError(ref cause) => Some(cause),
             BookServiceError::BookBodyError(ref cause) => Some(cause),
+            BookServiceError::DaoInitializationError(ref cause) => Some(cause),
+            BookServiceError::SettingsError(ref cause) => Some(cause),
             _ => None
 
         }
@@ -82,6 +99,18 @@ impl Error for BookServiceError {
 impl From<HyperError> for BookServiceError {
     fn from(err: HyperError) -> Self {
         BookServiceError::BookBodyError(err)
+    }
+}
+
+impl From<ParseError> for BookServiceError {
+    fn from(err: ParseError) -> Self {
+        BookServiceError::InvalidUuidError(err)
+    }
+}
+
+impl From<ConfigError> for BookServiceError {
+    fn from(err: ConfigError) -> Self {
+        BookServiceError::SettingsError(err)
     }
 }
 
