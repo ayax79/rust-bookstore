@@ -22,7 +22,7 @@ spec:
   ports:
     - port: 80
       targetPort: http-api
-  type: ClusterIP
+  type: NodePort
 ---
 apiVersion: apps/v1
 kind: Deployment
