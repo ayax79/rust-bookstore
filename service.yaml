@@ -1,0 +1,12 @@
+name: rust-bookstore
+
+profiles:
+  default:
+    endpoint: /bookstore/
+    max_memory: 0.5G
+    max_cpu: 0.5
+  canary:
+    endpoint: /bookstore/
+    weight: 10.0
+    max_memory: 0.5G
+    max_cpu: 0.5
