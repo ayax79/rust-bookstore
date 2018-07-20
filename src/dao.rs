@@ -1,11 +1,12 @@
 use uuid::Uuid;
 
-use errors::BookServiceError;
-
-use redis::{self, Commands, Client, PipelineCommands};
-use model::Book;
-use settings::Settings;
+use std::convert::AsRef;
 use std::collections::HashMap;
+use redis::{self, Commands, Client, PipelineCommands};
+use base64;
+use model::Book;
+use errors::BookServiceError;
+use settings::Settings;
 
 const AUTHOR: &'static str = "author";
 const TITLE: &'static str = "title";
@@ -17,8 +18,11 @@ pub struct BookDao {
 
 impl BookDao {
     pub fn new(settings: &Settings) -> Result<BookDao, BookServiceError> {
-        Client::open(settings.redis_url.as_ref())
-            .map_err(|e| BookServiceError::DaoInitializationError(e))
+        redis_url(settings)
+            .and_then(|url| {
+                Client::open(url.as_ref())
+                    .map_err(|e| BookServiceError::DaoInitializationError(e))
+            })
             .map(|client| {
                 BookDao {
                     client
@@ -71,4 +75,42 @@ fn uuid_from_key(key: &str) -> Result<Uuid, BookServiceError> {
     let minus_prefix = &key[4..];
     Uuid::parse_str(minus_prefix)
         .map_err(BookServiceError::from)
+}
+
+
+fn redis_url(settings: &Settings) -> Result<String, BookServiceError> {
+    base64::decode(settings.redis_password.as_bytes())
+        .map_err(|_| BookServiceError::RedisPasswordError)
+        .and_then(|pass_as_bytes| {
+            String::from_utf8(pass_as_bytes)
+                .map(|s| s.trim().to_owned())
+                .map_err(|_| BookServiceError::RedisPasswordError)
+        })
+        .map(|password| {
+            format!("redis://:{}@{}:{}",  password, settings.redis_host, settings.redis_port)            
+        })
+
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_redit_url() {
+        let test_settings = Settings {
+            server_address: None,
+            server_port: None,
+            redis_host: "myredishost".to_owned(),
+            redis_password: "bXlyZWRpc3Bhc3MK".to_owned(),
+            redis_port: 6363,
+            hostname: None
+        };
+
+        let url = "redis://:myredispass@myredishost:6363";
+        let result = redis_url(&test_settings).unwrap();
+        assert_eq!(url.to_string(), result);
+    }
+
 }

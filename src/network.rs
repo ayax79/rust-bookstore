@@ -73,6 +73,7 @@ pub struct SocketInfo {
 
 impl SocketInfo {
 
+    #[allow(dead_code)] // i want to keep this around for now
     pub fn base_url(&self) -> String {
         let url = format!("http://{}:{}", self.ip_address, self.port);
         url.to_string()

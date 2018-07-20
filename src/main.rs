@@ -17,6 +17,7 @@ extern crate redis;
 extern crate core;
 #[macro_use]
 extern crate lazy_static;
+extern crate base64;
 
 mod model;
 mod dao;

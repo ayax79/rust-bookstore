@@ -22,7 +22,8 @@ pub enum BookServiceError {
     BookBodyError(HyperError),
     DaoInitializationError(RedisError),
     MissingFieldError(String),
-    SettingsError(ConfigError)
+    SettingsError(ConfigError),
+    RedisPasswordError,
 }
 
 impl fmt::Display for BookServiceError {
@@ -58,6 +59,9 @@ impl fmt::Display for BookServiceError {
             },
             &BookServiceError::SettingsError(ref e) => {
                 write!(f, "Configuration Issue - Root Cause: {}", e)
+            },
+            &BookServiceError::RedisPasswordError => {
+                write!(f, "Could not decode redis password")
             }
         }
     }
@@ -75,6 +79,7 @@ impl Error for BookServiceError {
             BookServiceError::BookBodyError(ref cause) => cause.description(),
             BookServiceError::DaoInitializationError(ref cause) => cause.description(),
             BookServiceError::SettingsError(ref cause) => cause.description(),
+            BookServiceError::RedisPasswordError => "Could not decode redis password",
             BookServiceError::MissingFieldError(_) => "Book entry was missing a field"
         }
     }
