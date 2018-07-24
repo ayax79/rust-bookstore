@@ -36,10 +36,10 @@ impl NetworkInfo {
     }
 
     pub fn build_server_socket_info(&self, settings: &Settings) -> SocketInfo {
-        let ip_address = settings.server_address.to_owned()
+        let ip_address = settings.server_address().to_owned()
             .or(self.ip_address.to_owned())
             .unwrap_or(DEFAULT_HOST.to_string());
-        let port = settings.server_port.unwrap_or(DEFAULT_PORT);
+        let port = settings.server_port().unwrap_or(DEFAULT_PORT);
         let full_addr = format!("{}:{}", ip_address, port);
         let socket_addr = full_addr.parse().unwrap();
 

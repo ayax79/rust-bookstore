@@ -43,14 +43,13 @@ impl BookDao {
             .map_err(|re| BookServiceError::BookCreateError(re))
     }
 
-     pub fn get(&self, uuid: &Uuid) -> Result<Book, BookServiceError> {
-         let key = id_key(uuid);
-         self.client.get_connection()
-             .and_then(|conn| conn.hgetall(key.to_owned()))
-             .map_err(|e| BookServiceError::BookGetError(e))
-             .and_then(|ref hm: HashMap<String, String>| book_from_map(key.as_ref(), hm))
-     }
-
+    pub fn get(&self, uuid: &Uuid) -> Result<Book, BookServiceError> {
+        let key = id_key(uuid);
+        self.client.get_connection()
+            .and_then(|conn| conn.hgetall(key.to_owned()))
+            .map_err(|e| BookServiceError::BookGetError(e))
+            .and_then(|ref hm: HashMap<String, String>| book_from_map(key.as_ref(), hm))
+    }
 }
 
 fn book_from_map(key: &str, hm: &HashMap<String, String>) -> Result<Book, BookServiceError> {
@@ -58,7 +57,7 @@ fn book_from_map(key: &str, hm: &HashMap<String, String>) -> Result<Book, BookSe
         .and_then(|book_id| {
             let author = hm.get(AUTHOR).ok_or(BookServiceError::MissingFieldError(AUTHOR.to_string()))?;
             let title = hm.get(TITLE).ok_or(BookServiceError::MissingFieldError(TITLE.to_string()))?;
-            Ok(Book{
+            Ok(Book {
                 book_id,
                 author: author.to_owned(),
                 title: title.to_owned(),
@@ -79,38 +78,48 @@ fn uuid_from_key(key: &str) -> Result<Uuid, BookServiceError> {
 
 
 fn redis_url(settings: &Settings) -> Result<String, BookServiceError> {
-    base64::decode(settings.redis_password.as_bytes())
-        .map_err(|_| BookServiceError::RedisPasswordError)
+    settings.redis_password()
+        .ok_or(BookServiceError::RedisPasswordError)
+        .and_then(|password| {
+            base64::decode(password.as_bytes())
+                .map_err(|_| BookServiceError::RedisPasswordError)
+        })
         .and_then(|pass_as_bytes| {
             String::from_utf8(pass_as_bytes)
                 .map(|s| s.trim().to_owned())
                 .map_err(|_| BookServiceError::RedisPasswordError)
         })
-        .map(|password| {
-            format!("redis://:{}@{}:{}",  password, settings.redis_host, settings.redis_port)            
+        .and_then(|password| {
+            settings.redis_host()
+                .map(|host| (host, password))
+                .ok_or(BookServiceError::RedisHostError)
         })
-
+        .and_then(|(host, password)| {
+            settings.redis_port()
+                .map(|port| (host, port, password))
+                .ok_or(BookServiceError::RedisPortError)
+        })
+        .map(|(host, port, password)| {
+            format!("redis://:{}@{}:{}", password, host, port)
+        })
 }
 
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use config::Config;
 
     #[test]
     fn test_redit_url() {
-        let test_settings = Settings {
-            server_address: None,
-            server_port: None,
-            redis_host: "myredishost".to_owned(),
-            redis_password: "bXlyZWRpc3Bhc3MK".to_owned(),
-            redis_port: 6363,
-            hostname: None
-        };
+        let mut config = Config::new();
+        &config.set("redishost", "myredishost").unwrap()
+            .set("redispassword", "bXlyZWRpc3Bhc3MK").unwrap()
+            .set("redisport", "6363").unwrap();
+        let test_settings = Settings::with_config(config.clone());
 
         let url = "redis://:myredispass@myredishost:6363";
         let result = redis_url(&test_settings).unwrap();
         assert_eq!(url.to_string(), result);
     }
-
 }

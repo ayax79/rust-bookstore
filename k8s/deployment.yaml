@@ -20,9 +20,10 @@ spec:
   selector:
     app: {{build.name}}
   ports:
-    - port: 80
+    - protocol: TCP
+      port: 80
       targetPort: http-api
-  type: NodePort
+  type: LoadBalancer
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -58,9 +59,9 @@ spec:
           - name: BOOKSTORE_REDISPASSWORD
             valueFrom:
               secretKeyRef:
-                name: happy-flee-redis
+                name: ponderous-beetle-redis
                 key: redis-password
           - name: BOOKSTORE_REDISHOST
-            value: happy-flee-redis-master.default.svc.cluster.local
+            value: ponderous-beetle-redis-master.default.svc.cluster.local
           - name: BOOKSTORE_REDISPORT
             value: "6379"
