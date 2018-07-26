@@ -15,18 +15,18 @@ impl BookRequest {
     pub fn from_request(req: &Request<Body>) -> Result<BookRequest, BookServiceError> {
         match (req.method(), req.uri().path()) {
             (&Method::GET, _) => Self::handle_get(req),
-            (&Method::POST, "/book") => Self::handle_post(),
+            (&Method::POST, "/book/") => Self::handle_post(),
             _ => Err(BookServiceError::NotFoundError)
         }
     }
 
     fn handle_get(req: &Request<Body>) ->  Result<BookRequest, BookServiceError> {
         let path = req.uri().path();
-        if path.starts_with("/book/") {
+        if path.starts_with("/book/health") {
+            Ok(BookRequest::Health)
+        } else if path.starts_with("/book/") {
             Self::parse_id(req)
                 .map(|uuid| BookRequest::GetBook(uuid))
-        } else if path.starts_with("/health") {
-            Ok(BookRequest::Health)
         } else {
             Err(BookServiceError::NotFoundError)
         }
@@ -56,7 +56,7 @@ mod tests {
     fn test_post() {
         let request = Request::builder()
             .method("POST")
-            .uri("/book")
+            .uri("/book/")
             .body(Body::empty())
             .unwrap();
         let request_type = BookRequest::from_request(&request).unwrap();

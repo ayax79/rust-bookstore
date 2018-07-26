@@ -4,14 +4,18 @@ FROM rust:1.27.0 as build
 RUN USER=root cargo new --bin rust-bookstore
 WORKDIR /rust-bookstore
 COPY ./Cargo.toml ./Cargo.toml
+COPY ./Cargo.lock ./Cargo.lock
 
 # build deps and remove fake source
 RUN cargo build --release
 RUN rm -rf ./src ./target
 COPY ./src ./src
+
 #build actual sources
 RUN cargo build --release
 
+# This copies the binary from the build step
+# and will execute it as a bookstore user
 FROM debian:jessie-slim
 #Don't run as root
 RUN groupadd -g 999 bookstore \

@@ -22,10 +22,10 @@ example json:
 * Install Helm (https://www.helm.sh/)
 * Install Forge (https://forge.sh/)
 * Install Redis
-    - _helm install stable/redis > /tmp/install_notes.txt_
-* Configure Deployment (todo - make less sucky)
-    - _forge setup_
-    - Modify deployment.yaml's BOOKSTORE_REDISHOST BOOKSTORE_REDISPASSWORD to match the redis install names (it will be different per install)
+    - execute _helm install stable/redis > /tmp/install_notes.txt_
+* Configure Forge
+    - Configure forge. execute: _forge setup_
+    - Configure to point at our redis install. execute: _scripts/gen_env.sh_
 * Deploy
     _forge deploy_
     _kubectl get pods,services_

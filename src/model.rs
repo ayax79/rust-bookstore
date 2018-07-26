@@ -25,11 +25,8 @@ impl Book {
     }
 
     pub fn from_slice(slice: &[u8]) -> Result<Book, BookServiceError> {
-        trace!("from_slice called!");
-        let result = serde_json::from_slice(slice)
-            .map_err(BookServiceError::BookParseError);
-        trace!("Book parsed from slice: {:?}", result);
-        result
+        serde_json::from_slice(slice)
+            .map_err(BookServiceError::BookParseError)
     }
 
     pub fn to_vec(&self) -> Result<Vec<u8>, BookServiceError> {
@@ -88,8 +85,15 @@ mod tests {
         assert_eq!("Ernest Hemmingway", book.author);
         assert_eq!("For Whom the Bell Tolls", book.title);
     }
+
+    #[test]
+    fn test_from_slice() {
+        let json = "{\r\n\"book_id\": \"0bcd291d-b7c5-4390-965f-8a70707d22a5\",\r\n\"author\": \"Robert Jordan\",\r\n\"title\": \"Eye of the World\"\r\n}";
+        let book_result = Book::from_slice(json.as_bytes());
+        assert!(book_result.is_ok());
+        let book = book_result.unwrap();
+        assert_eq!("Robert Jordan", book.author);
+        assert_eq!("Eye of the World", book.title);
+        assert_eq!("0bcd291d-b7c5-4390-965f-8a70707d22a5", book.book_id.hyphenated().to_string());
+    }
 }
-
-
-
-

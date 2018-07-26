@@ -60,8 +60,8 @@ spec:
             valueFrom:
               secretKeyRef:
                 name: ponderous-beetle-redis
-                key: redis-password
+                key: {{env.REDIS_SECRET}}
           - name: BOOKSTORE_REDISHOST
-            value: ponderous-beetle-redis-master.default.svc.cluster.local
+            value: {{env.REDIS_HOST}}
           - name: BOOKSTORE_REDISPORT
             value: "6379"

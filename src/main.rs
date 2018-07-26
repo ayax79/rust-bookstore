@@ -45,7 +45,7 @@ fn main() {
                 .serve(|| service_fn(book_service))
                 .map_err(|err| eprintln!("server error: {}", err));
 
-            println!("Starting BookService on {}", &socket_info.port);
+            println!("Starting BookService on {}", &socket_info.socket_addr);
 
             hyper::rt::run(server);
         },

@@ -21,7 +21,10 @@ impl BookDao {
         redis_url(settings)
             .and_then(|url| {
                 Client::open(url.as_ref())
-                    .map_err(|e| BookServiceError::DaoInitializationError(e))
+                    .map_err(|e| {
+                        eprintln!("Could not open redis connection! {} ", &e);
+                        BookServiceError::DaoInitializationError(e)
+                    })
             })
             .map(|client| {
                 BookDao {
@@ -31,6 +34,7 @@ impl BookDao {
     }
 
     pub fn put(&self, entry: &Book) -> Result<(), BookServiceError> {
+        println!("put for book {:?}", &entry);
         self.client.get_connection()
             .and_then(|conn| {
                 let key = id_key(&entry.book_id);
@@ -40,14 +44,20 @@ impl BookDao {
                     .hset(key.to_owned(), TITLE, entry.title.to_owned())
                     .query(&conn)
             })
-            .map_err(|re| BookServiceError::BookCreateError(re))
+            .map_err(|re| {
+                eprintln!("Failed to put book {:?}", &re);
+                BookServiceError::BookCreateError(re)
+            })
     }
 
     pub fn get(&self, uuid: &Uuid) -> Result<Book, BookServiceError> {
         let key = id_key(uuid);
         self.client.get_connection()
             .and_then(|conn| conn.hgetall(key.to_owned()))
-            .map_err(|e| BookServiceError::BookGetError(e))
+            .map_err(|e| {
+                eprintln!("Error Getting book {}", &e);
+                BookServiceError::BookGetError(e)
+            })
             .and_then(|ref hm: HashMap<String, String>| book_from_map(key.as_ref(), hm))
     }
 }
@@ -55,8 +65,14 @@ impl BookDao {
 fn book_from_map(key: &str, hm: &HashMap<String, String>) -> Result<Book, BookServiceError> {
     uuid_from_key(key)
         .and_then(|book_id| {
-            let author = hm.get(AUTHOR).ok_or(BookServiceError::MissingFieldError(AUTHOR.to_string()))?;
-            let title = hm.get(TITLE).ok_or(BookServiceError::MissingFieldError(TITLE.to_string()))?;
+            let author = hm.get(AUTHOR).ok_or_else(|| {
+                eprintln!("Book entry for key {} does not contain field author", key);
+                BookServiceError::MissingFieldError(AUTHOR.to_string())
+            })?;
+            let title = hm.get(TITLE).ok_or_else(|| {
+                eprintln!("Book entry for key {} does not contain field title", key);
+                BookServiceError::MissingFieldError(TITLE.to_string())
+            })?;
             Ok(Book {
                 book_id,
                 author: author.to_owned(),
@@ -71,39 +87,40 @@ fn id_key(uuid: &Uuid) -> String {
 }
 
 fn uuid_from_key(key: &str) -> Result<Uuid, BookServiceError> {
-    let minus_prefix = &key[4..];
+    let minus_prefix = &key[5..];
     Uuid::parse_str(minus_prefix)
-        .map_err(BookServiceError::from)
+        .map_err(|e| {
+            eprintln!("Unable to parse UUID from key: {}", key);
+            BookServiceError::from(e)
+        })
 }
-
 
 fn redis_url(settings: &Settings) -> Result<String, BookServiceError> {
     settings.redis_password()
-        .ok_or(BookServiceError::RedisPasswordError)
-        .and_then(|password| {
-            base64::decode(password.as_bytes())
-                .map_err(|_| BookServiceError::RedisPasswordError)
-        })
-        .and_then(|pass_as_bytes| {
-            String::from_utf8(pass_as_bytes)
-                .map(|s| s.trim().to_owned())
-                .map_err(|_| BookServiceError::RedisPasswordError)
+        .ok_or_else(|| {
+            eprintln!("Redis password was not specified");
+            BookServiceError::RedisPasswordError
         })
         .and_then(|password| {
             settings.redis_host()
                 .map(|host| (host, password))
-                .ok_or(BookServiceError::RedisHostError)
+                .ok_or_else (|| {
+                    eprintln!("Redis host was not specified");
+                    BookServiceError::RedisHostError
+                })
         })
         .and_then(|(host, password)| {
             settings.redis_port()
                 .map(|port| (host, port, password))
-                .ok_or(BookServiceError::RedisPortError)
+                .ok_or_else(|| {
+                    eprintln!("Redis port was not specified");
+                    BookServiceError::RedisPortError
+                })
         })
         .map(|(host, port, password)| {
             format!("redis://:{}@{}:{}", password, host, port)
         })
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -122,4 +139,12 @@ mod tests {
         let result = redis_url(&test_settings).unwrap();
         assert_eq!(url.to_string(), result);
     }
+
+    #[test]
+    fn test_uuid_from_key() {
+        let key = "BOOK-0bcd291d-b7c5-4390-965f-8a70707d22a5";
+        let result = uuid_from_key(key);
+        assert!(result.is_ok());
+    }
+
 }

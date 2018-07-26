@@ -15,11 +15,12 @@ use settings::Settings;
 type BookSvcFuture = Box<Future<Item=Response<Body>, Error=io::Error> + Send>;
 
 pub fn book_service(req: Request<Body>) -> BookSvcFuture {
-    debug!("Received: {} {}", req.method(), &req.uri().path());
+    println!("Received: {} {}", req.method(), &req.uri().path());
 
     if let Ok(settings) = Settings::new() {
         match BookRequest::from_request(&req) {
             Ok(BookRequest::GetBook(uuid)) => {
+                println!("Retrieving GET {}", &uuid);
                 let result = BookDao::new(&settings)
                     .and_then(|dao| dao.get(&uuid))
                     .and_then(|book| book.to_vec())
@@ -36,12 +37,11 @@ pub fn book_service(req: Request<Body>) -> BookSvcFuture {
                 Box::new(future::result(result))
             }
             Ok(BookRequest::PostBook) => {
+                println!("Processing POST - creating book");
                 let s = settings.clone();
                 let f = req.into_body().concat2()
                     .map(move |body| {
-                        if log_enabled!(Level::Debug) {
-                            debug!("body: {:?}", str::from_utf8(body.as_ref()));
-                        }
+                        println!("POST body {:?}", str::from_utf8(body.as_ref()));
 
                         Book::from_slice(body.as_ref())
                             .and_then(|ref book| {
@@ -62,6 +62,7 @@ pub fn book_service(req: Request<Body>) -> BookSvcFuture {
                 Box::new(f)
             }
             Ok(BookRequest::Health) => {
+                println!("Processing health request");
                 let response = Response::builder()
                     .status(200)
                     .body(Body::empty())
