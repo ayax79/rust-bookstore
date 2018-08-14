@@ -59,7 +59,7 @@ spec:
           - name: BOOKSTORE_REDISPASSWORD
             valueFrom:
               secretKeyRef:
-                name: ponderous-beetle-redis
+                name: {{env.REDIS_NAME}}
                 key: {{env.REDIS_SECRET}}
           - name: BOOKSTORE_REDISHOST
             value: {{env.REDIS_HOST}}

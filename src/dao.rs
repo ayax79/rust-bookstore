@@ -131,7 +131,7 @@ mod tests {
     fn test_redit_url() {
         let mut config = Config::new();
         &config.set("redishost", "myredishost").unwrap()
-            .set("redispassword", "bXlyZWRpc3Bhc3MK").unwrap()
+            .set("redispassword", "myredispass").unwrap()
             .set("redisport", "6363").unwrap();
         let test_settings = Settings::with_config(config.clone());
 
