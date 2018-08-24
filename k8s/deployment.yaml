@@ -60,7 +60,7 @@ spec:
             valueFrom:
               secretKeyRef:
                 name: {{env.REDIS_NAME}}
-                key: {{env.REDIS_SECRET}}
+                key: redis-password
           - name: BOOKSTORE_REDISHOST
             value: {{env.REDIS_HOST}}
           - name: BOOKSTORE_REDISPORT
