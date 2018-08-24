@@ -4,7 +4,6 @@ use std::convert::From;
 use hyper::{Body, Request, Response};
 use hyper::header::CONTENT_TYPE;
 use futures::{future, Stream, Future};
-use log::Level;
 
 use request::BookRequest;
 use errors::BookServiceError;

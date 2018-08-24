@@ -3,7 +3,6 @@ use uuid::Uuid;
 use std::convert::AsRef;
 use std::collections::HashMap;
 use redis::{self, Commands, Client, PipelineCommands};
-use base64;
 use model::Book;
 use errors::BookServiceError;
 use settings::Settings;
