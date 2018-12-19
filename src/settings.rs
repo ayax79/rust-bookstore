@@ -1,11 +1,10 @@
-use std::convert::From;
 use config::{Config, Environment};
 use errors::BookServiceError;
-
+use std::convert::From;
 
 #[derive(Debug, Clone)]
 pub struct Settings {
-    config: Config
+    config: Config,
 }
 
 impl Settings {
@@ -13,10 +12,8 @@ impl Settings {
         Config::new()
             .merge(Environment::with_prefix("bookstore"))
             .map_err(BookServiceError::from)
-            .map(|config| {
-                Settings {
-                    config: config.to_owned()
-                }
+            .map(|config| Settings {
+                config: config.to_owned(),
             })
     }
 
@@ -51,7 +48,6 @@ impl Settings {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -79,5 +75,5 @@ mod tests {
         let settings = Settings::new().unwrap();
         assert_eq!("0.0.0.0:80", settings.server_address().unwrap());
     }
-}
 
+}

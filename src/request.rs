@@ -1,32 +1,30 @@
 use errors::BookServiceError;
-use hyper::{Method, Request, Body};
+use hyper::{Body, Method, Request};
 use uuid::Uuid;
 
 #[derive(Debug, PartialEq)]
 pub enum BookRequest {
     GetBook(Uuid),
     PostBook,
-    Health
+    Health,
 }
 
 //todo - move to TryFrom when available
 impl BookRequest {
-
     pub fn from_request(req: &Request<Body>) -> Result<BookRequest, BookServiceError> {
         match (req.method(), req.uri().path()) {
             (&Method::GET, _) => Self::handle_get(req),
             (&Method::POST, "/book/") => Self::handle_post(),
-            _ => Err(BookServiceError::NotFoundError)
+            _ => Err(BookServiceError::NotFoundError),
         }
     }
 
-    fn handle_get(req: &Request<Body>) ->  Result<BookRequest, BookServiceError> {
+    fn handle_get(req: &Request<Body>) -> Result<BookRequest, BookServiceError> {
         let path = req.uri().path();
         if path.starts_with("/book/health") {
             Ok(BookRequest::Health)
         } else if path.starts_with("/book/") {
-            Self::parse_id(req)
-                .map(|uuid| BookRequest::GetBook(uuid))
+            Self::parse_id(req).map(|uuid| BookRequest::GetBook(uuid))
         } else {
             Err(BookServiceError::NotFoundError)
         }
@@ -42,15 +40,16 @@ impl BookRequest {
         path.rfind('/')
             .ok_or(BookServiceError::NotFoundError)
             .map(|index| path[(index + 1)..].to_owned())
-            .and_then(|ref sub_string| Uuid::parse_str(sub_string).map_err(BookServiceError::InvalidUuidError))
+            .and_then(|ref sub_string| {
+                Uuid::parse_str(sub_string).map_err(BookServiceError::InvalidUuidError)
+            })
     }
-
 }
 
 #[cfg(test)]
 mod tests {
-    use hyper::Request;
     use super::*;
+    use hyper::Request;
 
     #[test]
     fn test_post() {

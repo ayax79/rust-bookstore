@@ -1,40 +1,36 @@
 use uuid::Uuid;
 
-use std::convert::AsRef;
-use std::collections::HashMap;
-use redis::{self, Commands, Client, PipelineCommands};
-use model::Book;
 use errors::BookServiceError;
+use model::Book;
+use redis::{self, Client, Commands, PipelineCommands};
 use settings::Settings;
+use std::collections::HashMap;
+use std::convert::AsRef;
 
 const AUTHOR: &'static str = "author";
 const TITLE: &'static str = "title";
 
 #[derive(Debug, Clone)]
 pub struct BookDao {
-    client: Client
+    client: Client,
 }
 
 impl BookDao {
     pub fn new(settings: &Settings) -> Result<BookDao, BookServiceError> {
         redis_url(settings)
             .and_then(|url| {
-                Client::open(url.as_ref())
-                    .map_err(|e| {
-                        eprintln!("Could not open redis connection! {} ", &e);
-                        BookServiceError::DaoInitializationError(e)
-                    })
+                Client::open(url.as_ref()).map_err(|e| {
+                    eprintln!("Could not open redis connection! {} ", &e);
+                    BookServiceError::DaoInitializationError(e)
+                })
             })
-            .map(|client| {
-                BookDao {
-                    client
-                }
-            })
+            .map(|client| BookDao { client })
     }
 
     pub fn put(&self, entry: &Book) -> Result<(), BookServiceError> {
         println!("put for book {:?}", &entry);
-        self.client.get_connection()
+        self.client
+            .get_connection()
             .and_then(|conn| {
                 let key = id_key(&entry.book_id);
                 redis::pipe()
@@ -51,7 +47,8 @@ impl BookDao {
 
     pub fn get(&self, uuid: &Uuid) -> Result<Book, BookServiceError> {
         let key = id_key(uuid);
-        self.client.get_connection()
+        self.client
+            .get_connection()
             .and_then(|conn| conn.hgetall(key.to_owned()))
             .map_err(|e| {
                 eprintln!("Error Getting book {}", &e);
@@ -62,63 +59,61 @@ impl BookDao {
 }
 
 fn book_from_map(key: &str, hm: &HashMap<String, String>) -> Result<Book, BookServiceError> {
-    uuid_from_key(key)
-        .and_then(|book_id| {
-            let author = hm.get(AUTHOR).ok_or_else(|| {
-                eprintln!("Book entry for key {} does not contain field author", key);
-                BookServiceError::MissingFieldError(AUTHOR.to_string())
-            })?;
-            let title = hm.get(TITLE).ok_or_else(|| {
-                eprintln!("Book entry for key {} does not contain field title", key);
-                BookServiceError::MissingFieldError(TITLE.to_string())
-            })?;
-            Ok(Book {
-                book_id,
-                author: author.to_owned(),
-                title: title.to_owned(),
-            })
+    uuid_from_key(key).and_then(|book_id| {
+        let author = hm.get(AUTHOR).ok_or_else(|| {
+            eprintln!("Book entry for key {} does not contain field author", key);
+            BookServiceError::MissingFieldError(AUTHOR.to_string())
+        })?;
+        let title = hm.get(TITLE).ok_or_else(|| {
+            eprintln!("Book entry for key {} does not contain field title", key);
+            BookServiceError::MissingFieldError(TITLE.to_string())
+        })?;
+        Ok(Book {
+            book_id,
+            author: author.to_owned(),
+            title: title.to_owned(),
         })
+    })
 }
 
 fn id_key(uuid: &Uuid) -> String {
-    "BOOK-".to_string() +
-        uuid.hyphenated().to_string().as_ref()
+    "BOOK-".to_string() + uuid.hyphenated().to_string().as_ref()
 }
 
 fn uuid_from_key(key: &str) -> Result<Uuid, BookServiceError> {
     let minus_prefix = &key[5..];
-    Uuid::parse_str(minus_prefix)
-        .map_err(|e| {
-            eprintln!("Unable to parse UUID from key: {}", key);
-            BookServiceError::from(e)
-        })
+    Uuid::parse_str(minus_prefix).map_err(|e| {
+        eprintln!("Unable to parse UUID from key: {}", key);
+        BookServiceError::from(e)
+    })
 }
 
 fn redis_url(settings: &Settings) -> Result<String, BookServiceError> {
-    settings.redis_password()
+    settings
+        .redis_password()
         .ok_or_else(|| {
             eprintln!("Redis password was not specified");
             BookServiceError::RedisPasswordError
         })
         .and_then(|password| {
-            settings.redis_host()
+            settings
+                .redis_host()
                 .map(|host| (host, password))
-                .ok_or_else (|| {
+                .ok_or_else(|| {
                     eprintln!("Redis host was not specified");
                     BookServiceError::RedisHostError
                 })
         })
         .and_then(|(host, password)| {
-            settings.redis_port()
+            settings
+                .redis_port()
                 .map(|port| (host, port, password))
                 .ok_or_else(|| {
                     eprintln!("Redis port was not specified");
                     BookServiceError::RedisPortError
                 })
         })
-        .map(|(host, port, password)| {
-            format!("redis://:{}@{}:{}", password, host, port)
-        })
+        .map(|(host, port, password)| format!("redis://:{}@{}:{}", password, host, port))
 }
 
 #[cfg(test)]
@@ -129,9 +124,13 @@ mod tests {
     #[test]
     fn test_redit_url() {
         let mut config = Config::new();
-        &config.set("redishost", "myredishost").unwrap()
-            .set("redispassword", "myredispass").unwrap()
-            .set("redisport", "6363").unwrap();
+        &config
+            .set("redishost", "myredishost")
+            .unwrap()
+            .set("redispassword", "myredispass")
+            .unwrap()
+            .set("redisport", "6363")
+            .unwrap();
         let test_settings = Settings::with_config(config.clone());
 
         let url = "redis://:myredispass@myredishost:6363";
@@ -145,5 +144,4 @@ mod tests {
         let result = uuid_from_key(key);
         assert!(result.is_ok());
     }
-
 }

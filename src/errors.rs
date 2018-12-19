@@ -1,11 +1,11 @@
-use std::{fmt, io};
-use std::error::Error;
-use uuid::ParseError;
-use serde_json::Error as SerdeJsonError;
-use hyper::Error as HyperError;
-use std::convert::From;
-use redis::RedisError;
 use config::ConfigError;
+use hyper::Error as HyperError;
+use redis::RedisError;
+use serde_json::Error as SerdeJsonError;
+use std::convert::From;
+use std::error::Error;
+use std::{fmt, io};
+use uuid::ParseError;
 
 #[derive(Debug)]
 pub enum BookServiceError {
@@ -29,48 +29,27 @@ pub enum BookServiceError {
 }
 
 impl fmt::Display for BookServiceError {
-
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &BookServiceError::InvalidUuidError(ref pe) => {
-                write!(f, "Root Cause: {}", pe)
-            },
-            &BookServiceError::NotFoundError => {
-                write!(f, "Resource or path was not found")
-            },
-            &BookServiceError::BookCreateError(ref pie) => {
-                write!(f, "Root Cause: {}", pie)
-            },
-            &BookServiceError::BookGetError(ref gie) => {
-                write!(f, "Root Cause: {}", gie)
-            },
-            &BookServiceError::BookParseError(ref sje) => {
-                write!(f, "Root Cause: {}", sje)
-            },
-            &BookServiceError::BookSerializationError(ref sje) => {
-                write!(f, "Root Cause: {}", sje)
-            },
-            &BookServiceError::BookBodyError(ref he) => {
-                write!(f, "Root Cause: {}", he)
-            },
-            &BookServiceError::DaoInitializationError(ref e) => {
-                write!(f, "Root Cause: {}", e)
-            },
+            &BookServiceError::InvalidUuidError(ref pe) => write!(f, "Root Cause: {}", pe),
+            &BookServiceError::NotFoundError => write!(f, "Resource or path was not found"),
+            &BookServiceError::BookCreateError(ref pie) => write!(f, "Root Cause: {}", pie),
+            &BookServiceError::BookGetError(ref gie) => write!(f, "Root Cause: {}", gie),
+            &BookServiceError::BookParseError(ref sje) => write!(f, "Root Cause: {}", sje),
+            &BookServiceError::BookSerializationError(ref sje) => write!(f, "Root Cause: {}", sje),
+            &BookServiceError::BookBodyError(ref he) => write!(f, "Root Cause: {}", he),
+            &BookServiceError::DaoInitializationError(ref e) => write!(f, "Root Cause: {}", e),
             &BookServiceError::MissingFieldError(ref field) => {
                 write!(f, "Invalid Book, missing field {} ", field)
-            },
+            }
             &BookServiceError::SettingsError(ref e) => {
                 write!(f, "Configuration Issue - Root Cause: {}", e)
-            },
+            }
             &BookServiceError::RedisPasswordError => {
                 write!(f, "Redis password was missing or improper base64")
-            },
-            &BookServiceError::RedisHostError => {
-                write!(f, "Redis host was missing")
-            },
-            &BookServiceError::RedisPortError => {
-                write!(f, "Redis port was missing")
             }
+            &BookServiceError::RedisHostError => write!(f, "Redis host was missing"),
+            &BookServiceError::RedisPortError => write!(f, "Redis port was missing"),
         }
     }
 }
@@ -90,7 +69,7 @@ impl Error for BookServiceError {
             BookServiceError::RedisPasswordError => "Could not decode redis password",
             BookServiceError::RedisHostError => "Redis host was missing",
             BookServiceError::RedisPortError => "Redis port was missing",
-            BookServiceError::MissingFieldError(_) => "Book entry was missing a field"
+            BookServiceError::MissingFieldError(_) => "Book entry was missing a field",
         }
     }
 
@@ -104,11 +83,9 @@ impl Error for BookServiceError {
             BookServiceError::BookBodyError(ref cause) => Some(cause),
             BookServiceError::DaoInitializationError(ref cause) => Some(cause),
             BookServiceError::SettingsError(ref cause) => Some(cause),
-            _ => None
-
+            _ => None,
         }
     }
-
 }
 
 impl From<HyperError> for BookServiceError {

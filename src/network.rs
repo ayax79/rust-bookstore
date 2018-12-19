@@ -1,5 +1,5 @@
-use pnet::datalink::{self, NetworkInterface};
 use ipnetwork::IpNetwork;
+use pnet::datalink::{self, NetworkInterface};
 use settings::Settings;
 use std::net::SocketAddr;
 
@@ -9,7 +9,7 @@ const DEFAULT_HOST: &'static str = "127.0.0.1";
 /// Information about the server this microservice is hosted on
 #[derive(Debug)]
 pub struct NetworkInfo {
-    pub ip_address: Option<String>
+    pub ip_address: Option<String>,
 }
 
 impl NetworkInfo {
@@ -17,26 +17,26 @@ impl NetworkInfo {
         // This isn't perfect. Right now we just try to find the first ip4 non-loopback ip address
         let ip_address = datalink::interfaces()
             .into_iter()
-            .find(NetworkInfo::is_valid_interface)     // find a device that isn't a loopback device
+            .find(NetworkInfo::is_valid_interface) // find a device that isn't a loopback device
             .and_then(|interface| {
-                interface.ips.into_iter()
-                    .find(|ip| ip.is_ipv4())     // find the ipv4 (skip ipv6)
-                    .and_then(|ipnetwork| {
-                        match ipnetwork {
-                            IpNetwork::V4(ip4) => Some(ip4),
-                            _ => None
-                        }
+                interface
+                    .ips
+                    .into_iter()
+                    .find(|ip| ip.is_ipv4()) // find the ipv4 (skip ipv6)
+                    .and_then(|ipnetwork| match ipnetwork {
+                        IpNetwork::V4(ip4) => Some(ip4),
+                        _ => None,
                     })
             })
             .map(|ip| ip.ip().to_string());
 
-        NetworkInfo {
-            ip_address
-        }
+        NetworkInfo { ip_address }
     }
 
     pub fn build_server_socket_info(&self, settings: &Settings) -> SocketInfo {
-        let ip_address = settings.server_address().to_owned()
+        let ip_address = settings
+            .server_address()
+            .to_owned()
             .or(self.ip_address.to_owned())
             .unwrap_or(DEFAULT_HOST.to_string());
         let port = settings.server_port().unwrap_or(DEFAULT_PORT);
@@ -46,7 +46,7 @@ impl NetworkInfo {
         SocketInfo {
             ip_address,
             port,
-            socket_addr
+            socket_addr,
         }
     }
 
@@ -55,12 +55,8 @@ impl NetworkInfo {
     }
 
     fn is_valid_interface(interface: &NetworkInterface) -> bool {
-
-        interface.is_up() &&
-            !interface.is_loopback() &&
-            NetworkInfo::has_ip4(interface)
+        interface.is_up() && !interface.is_loopback() && NetworkInfo::has_ip4(interface)
     }
-
 }
 
 /// Generic information about a socket
@@ -68,17 +64,15 @@ impl NetworkInfo {
 pub struct SocketInfo {
     pub ip_address: String,
     pub port: u16,
-    pub socket_addr: SocketAddr
+    pub socket_addr: SocketAddr,
 }
 
 impl SocketInfo {
-
     #[allow(dead_code)] // i want to keep this around for now
     pub fn base_url(&self) -> String {
         let url = format!("http://{}:{}", self.ip_address, self.port);
         url.to_string()
     }
-
 }
 
 #[cfg(test)]

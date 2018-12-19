@@ -1,36 +1,35 @@
-#[macro_use]
-extern crate serde_derive;
-extern crate serde;
-extern crate serde_json;
-
-extern crate tokio_core;
-extern crate hyper;
 extern crate futures;
+extern crate hyper;
+extern crate tokio_core;
 extern crate uuid;
 #[macro_use]
 extern crate log;
-extern crate env_logger;
-extern crate config;
-extern crate pnet;
-extern crate ipnetwork;
-extern crate redis;
-extern crate core;
 extern crate base64;
+extern crate config;
+extern crate env_logger;
+extern crate ipnetwork;
+extern crate pnet;
+extern crate redis;
+#[macro_use]
+extern crate serde_derive;
+extern crate core;
+extern crate serde;
+extern crate serde_json;
 
-mod model;
 mod dao;
 mod errors;
+mod model;
+mod network;
 mod request;
 mod service;
 mod settings;
-mod network;
 
-use settings::Settings;
-use network::NetworkInfo;
+use futures::Future;
 use hyper::server::Server;
 use hyper::service::service_fn;
+use network::NetworkInfo;
 use service::book_service;
-use futures::Future;
+use settings::Settings;
 
 fn main() {
     let log_result = env_logger::init();
@@ -48,12 +47,8 @@ fn main() {
             println!("Starting BookService on {}", &socket_info.socket_addr);
 
             hyper::rt::run(server);
-        },
-        Err(e) => {
-            eprintln!("Could not load settings {}", e)
         }
+        Err(e) => eprintln!("Could not load settings {}", e),
     }
-
     println!("BookStore service exiting")
 }
-
