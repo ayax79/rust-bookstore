@@ -1,20 +1,20 @@
 use uuid::Uuid;
 
 use errors::BookServiceError;
+use errors::DaoCause;
 use model::Book;
+use r2d2_redis::redis::Commands;
+use r2d2_redis::{r2d2, RedisConnectionManager};
 use redis::{self, PipelineCommands};
 use settings::Settings;
 use std::collections::HashMap;
 use std::convert::AsRef;
-use r2d2_redis::{r2d2, RedisConnectionManager};
-use r2d2_redis::redis::Commands;
-use errors::DaoCause;
 use std::ops::Deref;
 
 const AUTHOR: &'static str = "author";
 const TITLE: &'static str = "title";
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BookDao {
     redis_pool: r2d2::Pool<RedisConnectionManager>,
 }
@@ -24,21 +24,20 @@ impl BookDao {
         settings
             .redis_url()
             .and_then(|url| {
-                RedisConnectionManager::new(url.as_ref())
-                    .map_err(|e| {
-                        eprintln!("Could not create connection manager! {} ", &e);
-                        BookServiceError::from(e)
-                    })
+                RedisConnectionManager::new(url.as_ref()).map_err(|e| {
+                    eprintln!("Could not create connection manager! {} ", &e);
+                    BookServiceError::from(e)
+                })
             })
             .and_then(|mgr| {
-                r2d2::Pool::builder()
-                    .build(mgr)
-                    .map_err(|e| {
-                        eprintln!("Could not create connection pool! {} ", &e);
-                        BookServiceError::from(e)
-                    })
+                r2d2::Pool::builder().build(mgr).map_err(|e| {
+                    eprintln!("Could not create connection pool! {} ", &e);
+                    BookServiceError::from(e)
+                })
             })
-            .map(|connection_mgr| BookDao { redis_pool: connection_mgr })
+            .map(|connection_mgr| BookDao {
+                redis_pool: connection_mgr,
+            })
     }
 
     pub fn put(&self, entry: &Book) -> Result<(), BookServiceError> {
@@ -72,11 +71,10 @@ impl BookDao {
                 BookServiceError::BookGetError(DaoCause::from(e))
             })
             .and_then(|conn| {
-                conn.hgetall(key.to_owned())
-                    .map_err(|e| {
-                        eprintln!("Error Getting book {}", &e);
-                        BookServiceError::BookGetError(DaoCause::from(e))
-                    })
+                conn.hgetall(key.to_owned()).map_err(|e| {
+                    eprintln!("Error Getting book {}", &e);
+                    BookServiceError::BookGetError(DaoCause::from(e))
+                })
             })
             .and_then(|ref hm: HashMap<String, String>| book_from_map(key.as_ref(), hm))
     }

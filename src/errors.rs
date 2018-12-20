@@ -1,12 +1,12 @@
 use config::ConfigError;
 use hyper::Error as HyperError;
+use r2d2_redis::r2d2::Error as R2D2RedisError;
 use redis::RedisError;
 use serde_json::Error as SerdeJsonError;
 use std::convert::From;
 use std::error::Error;
 use std::{fmt, io};
 use uuid::ParseError;
-use r2d2_redis::r2d2::Error as R2D2RedisError;
 
 #[derive(Debug)]
 pub enum BookServiceError {
@@ -33,12 +33,16 @@ impl fmt::Display for BookServiceError {
         match self {
             &BookServiceError::InvalidUuidError(ref pe) => write!(f, "Root Cause: {}", pe),
             &BookServiceError::NotFoundError => write!(f, "Resource or path was not found"),
-            &BookServiceError::BookCreateError(ref pie) => write!(f, "Root Cause: {:?}", pie.cause()),
+            &BookServiceError::BookCreateError(ref pie) => {
+                write!(f, "Root Cause: {:?}", pie.cause())
+            }
             &BookServiceError::BookGetError(ref gie) => write!(f, "Root Cause: {:?}", gie.cause()),
             &BookServiceError::BookParseError(ref sje) => write!(f, "Root Cause: {}", sje),
             &BookServiceError::BookSerializationError(ref sje) => write!(f, "Root Cause: {}", sje),
             &BookServiceError::BookBodyError(ref he) => write!(f, "Root Cause: {}", he),
-            &BookServiceError::DaoInitializationError(ref e) => write!(f, "Root Cause: {:?}", e.cause()),
+            &BookServiceError::DaoInitializationError(ref e) => {
+                write!(f, "Root Cause: {:?}", e.cause())
+            }
             &BookServiceError::MissingFieldError(ref field) => {
                 write!(f, "Invalid Book, missing field {} ", field)
             }
@@ -124,21 +128,17 @@ impl From<RedisError> for BookServiceError {
 pub struct DaoCause(Option<RedisError>, Option<R2D2RedisError>);
 
 impl DaoCause {
-
     pub fn cause(&self) -> Option<&Error> {
         match self {
             DaoCause(Some(ref e), _) => Some(e),
             DaoCause(_, Some(e)) => Some(e),
-            _ => None
+            _ => None,
         }
     }
 
     pub fn description(&self) -> &str {
-        self.cause()
-            .map(|d| d.description())
-            .unwrap_or("")
+        self.cause().map(|d| d.description()).unwrap_or("")
     }
-
 }
 
 impl From<RedisError> for DaoCause {

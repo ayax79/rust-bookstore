@@ -13,9 +13,9 @@ extern crate redis;
 #[macro_use]
 extern crate serde_derive;
 extern crate core;
+extern crate r2d2_redis;
 extern crate serde;
 extern crate serde_json;
-extern crate r2d2_redis;
 
 mod dao;
 mod errors;
@@ -41,17 +41,23 @@ fn main() {
             let network_info = NetworkInfo::new();
             let socket_info = network_info.build_server_socket_info(&settings);
 
-            let server = Server::bind(&socket_info.socket_addr)
-                .serve(move || {
-                    let s = settings.clone();
-                    let book_service = BookService::new(&s);
-                    service_fn(move |req| book_service.service(req))
-                })
-                .map_err(|err| eprintln!("server error: {}", err));
+            match BookService::new(&settings) {
+                Ok(book_service) => {
+                    // Cloning to avoid reconstruction every time, clone is cheap
+                    let cloned_service = book_service.clone();
+                    let server = Server::bind(&socket_info.socket_addr)
+                        .serve(move || {
+                            let cs = cloned_service.clone();
+                            service_fn(move |req| cs.service(req))
+                        })
+                        .map_err(|err| eprintln!("server error: {}", err));
 
-            println!("Starting BookService on {}", &socket_info.socket_addr);
+                    println!("Starting BookService on {}", &socket_info.socket_addr);
 
-            hyper::rt::run(server);
+                    hyper::rt::run(server);
+                }
+                Err(e) => eprintln!("Could not construct BookService: {}", e),
+            }
         }
         Err(e) => eprintln!("Could not load settings {}", e),
     }

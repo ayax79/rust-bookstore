@@ -13,15 +13,14 @@ use settings::Settings;
 
 type BookSvcFuture = Box<Future<Item = Response<Body>, Error = io::Error> + Send>;
 
+#[derive(Debug, Clone)]
 pub struct BookService {
-    settings: Settings,
+    dao: BookDao,
 }
 
 impl BookService {
-    pub fn new(settings: &Settings) -> Self {
-        BookService {
-            settings: settings.to_owned(),
-        }
+    pub fn new(settings: &Settings) -> Result<Self, BookServiceError> {
+        BookDao::new(settings).map(|dao| BookService { dao })
     }
 
     pub fn service(&self, req: Request<Body>) -> BookSvcFuture {
@@ -30,8 +29,9 @@ impl BookService {
         match BookRequest::from_request(&req) {
             Ok(BookRequest::GetBook(uuid)) => {
                 println!("Retrieving GET {}", &uuid);
-                let result = BookDao::new(&self.settings)
-                    .and_then(|dao| dao.get(&uuid))
+                let result = self
+                    .dao
+                    .get(&uuid)
                     .and_then(|book| book.to_vec())
                     .map(Body::from)
                     .map(|v| {
@@ -47,7 +47,7 @@ impl BookService {
             }
             Ok(BookRequest::PostBook) => {
                 println!("Processing POST - creating book");
-                let s = self.settings.to_owned();
+                let dao = self.dao.to_owned();
                 let f = req
                     .into_body()
                     .concat2()
@@ -55,9 +55,7 @@ impl BookService {
                         println!("POST body {:?}", str::from_utf8(body.as_ref()));
 
                         Book::from_slice(body.as_ref())
-                            .and_then(|ref book| {
-                                BookDao::new(&s).and_then(|dao| dao.put(book)).map(|_| 202)
-                            })
+                            .and_then(|ref book| dao.put(book).map(|_| 202))
                             .unwrap_or(400)
                     })
                     .map(|status_code| {
