@@ -28,7 +28,7 @@ use futures::Future;
 use hyper::server::Server;
 use hyper::service::service_fn;
 use network::NetworkInfo;
-use service::book_service;
+use service::BookService;
 use settings::Settings;
 
 fn main() {
@@ -43,7 +43,8 @@ fn main() {
             let server = Server::bind(&socket_info.socket_addr)
                 .serve(move || {
                     let s = settings.clone();
-                    service_fn(move |req| book_service(&s, req))
+                    let book_service = BookService::new(&s);
+                    service_fn(move |req| book_service.service(req))
                 })
                 .map_err(|err| eprintln!("server error: {}", err));
 
