@@ -41,7 +41,10 @@ fn main() {
             let socket_info = network_info.build_server_socket_info(&settings);
 
             let server = Server::bind(&socket_info.socket_addr)
-                .serve(|| service_fn(book_service))
+                .serve(move || {
+                    let s = settings.clone();
+                    service_fn(move |req| book_service(&s, req))
+                })
                 .map_err(|err| eprintln!("server error: {}", err));
 
             println!("Starting BookService on {}", &socket_info.socket_addr);
