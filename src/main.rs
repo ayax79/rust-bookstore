@@ -15,6 +15,7 @@ extern crate serde_derive;
 extern crate core;
 extern crate serde;
 extern crate serde_json;
+extern crate r2d2_redis;
 
 mod dao;
 mod errors;

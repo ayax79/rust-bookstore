@@ -2,17 +2,21 @@ use uuid::Uuid;
 
 use errors::BookServiceError;
 use model::Book;
-use redis::{self, Client, Commands, PipelineCommands};
+use redis::{self, PipelineCommands};
 use settings::Settings;
 use std::collections::HashMap;
 use std::convert::AsRef;
+use r2d2_redis::{r2d2, RedisConnectionManager};
+use r2d2_redis::redis::Commands;
+use errors::DaoCause;
+use std::ops::Deref;
 
 const AUTHOR: &'static str = "author";
 const TITLE: &'static str = "title";
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct BookDao {
-    client: Client,
+    redis_pool: r2d2::Pool<RedisConnectionManager>,
 }
 
 impl BookDao {
@@ -20,40 +24,59 @@ impl BookDao {
         settings
             .redis_url()
             .and_then(|url| {
-                Client::open(url.as_ref()).map_err(|e| {
-                    eprintln!("Could not open redis connection! {} ", &e);
-                    BookServiceError::DaoInitializationError(e)
-                })
+                RedisConnectionManager::new(url.as_ref())
+                    .map_err(|e| {
+                        eprintln!("Could not create connection manager! {} ", &e);
+                        BookServiceError::from(e)
+                    })
             })
-            .map(|client| BookDao { client })
+            .and_then(|mgr| {
+                r2d2::Pool::builder()
+                    .build(mgr)
+                    .map_err(|e| {
+                        eprintln!("Could not create connection pool! {} ", &e);
+                        BookServiceError::from(e)
+                    })
+            })
+            .map(|connection_mgr| BookDao { redis_pool: connection_mgr })
     }
 
     pub fn put(&self, entry: &Book) -> Result<(), BookServiceError> {
         println!("put for book {:?}", &entry);
-        self.client
-            .get_connection()
+        self.redis_pool
+            .get()
+            .map_err(|e| {
+                eprintln!("Failed to put book {:?}", &e);
+                BookServiceError::BookCreateError(DaoCause::from(e))
+            })
             .and_then(|conn| {
                 let key = id_key(&entry.book_id);
                 redis::pipe()
                     .atomic()
                     .hset(key.to_owned(), AUTHOR, entry.author.to_owned())
                     .hset(key.to_owned(), TITLE, entry.title.to_owned())
-                    .query(&conn)
-            })
-            .map_err(|re| {
-                eprintln!("Failed to put book {:?}", &re);
-                BookServiceError::BookCreateError(re)
+                    .query(conn.deref())
+                    .map_err(|e| {
+                        eprintln!("Failed to put book {:?}", &e);
+                        BookServiceError::BookCreateError(DaoCause::from(e))
+                    })
             })
     }
 
     pub fn get(&self, uuid: &Uuid) -> Result<Book, BookServiceError> {
         let key = id_key(uuid);
-        self.client
-            .get_connection()
-            .and_then(|conn| conn.hgetall(key.to_owned()))
+        self.redis_pool
+            .get()
             .map_err(|e| {
                 eprintln!("Error Getting book {}", &e);
-                BookServiceError::BookGetError(e)
+                BookServiceError::BookGetError(DaoCause::from(e))
+            })
+            .and_then(|conn| {
+                conn.hgetall(key.to_owned())
+                    .map_err(|e| {
+                        eprintln!("Error Getting book {}", &e);
+                        BookServiceError::BookGetError(DaoCause::from(e))
+                    })
             })
             .and_then(|ref hm: HashMap<String, String>| book_from_map(key.as_ref(), hm))
     }
@@ -92,6 +115,7 @@ fn uuid_from_key(key: &str) -> Result<Uuid, BookServiceError> {
 #[cfg(test)]
 mod tests {
     extern crate testcontainers;
+
     use self::testcontainers::*;
     use super::*;
 
