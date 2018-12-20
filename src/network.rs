@@ -3,7 +3,7 @@ use pnet::datalink::{self, NetworkInterface};
 use settings::Settings;
 use std::net::SocketAddr;
 
-const DEFAULT_PORT: u16 = 8080;
+const DEFAULT_PORT: u32 = 8080;
 const DEFAULT_HOST: &'static str = "127.0.0.1";
 
 /// Information about the server this microservice is hosted on
@@ -35,11 +35,11 @@ impl NetworkInfo {
 
     pub fn build_server_socket_info(&self, settings: &Settings) -> SocketInfo {
         let ip_address = settings
-            .server_address()
+            .server_address
             .to_owned()
             .or(self.ip_address.to_owned())
             .unwrap_or(DEFAULT_HOST.to_string());
-        let port = settings.server_port().unwrap_or(DEFAULT_PORT);
+        let port = settings.server_port.unwrap_or(DEFAULT_PORT);
         let full_addr = format!("{}:{}", ip_address, port);
         let socket_addr = full_addr.parse().unwrap();
 
@@ -63,7 +63,7 @@ impl NetworkInfo {
 #[derive(Debug)]
 pub struct SocketInfo {
     pub ip_address: String,
-    pub port: u16,
+    pub port: u32,
     pub socket_addr: SocketAddr,
 }
 

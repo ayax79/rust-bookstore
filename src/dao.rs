@@ -17,7 +17,8 @@ pub struct BookDao {
 
 impl BookDao {
     pub fn new(settings: &Settings) -> Result<BookDao, BookServiceError> {
-        redis_url(settings)
+        settings
+            .redis_url()
             .and_then(|url| {
                 Client::open(url.as_ref()).map_err(|e| {
                     eprintln!("Could not open redis connection! {} ", &e);
@@ -88,60 +89,43 @@ fn uuid_from_key(key: &str) -> Result<Uuid, BookServiceError> {
     })
 }
 
-fn redis_url(settings: &Settings) -> Result<String, BookServiceError> {
-    settings
-        .redis_password()
-        .ok_or_else(|| {
-            eprintln!("Redis password was not specified");
-            BookServiceError::RedisPasswordError
-        })
-        .and_then(|password| {
-            settings
-                .redis_host()
-                .map(|host| (host, password))
-                .ok_or_else(|| {
-                    eprintln!("Redis host was not specified");
-                    BookServiceError::RedisHostError
-                })
-        })
-        .and_then(|(host, password)| {
-            settings
-                .redis_port()
-                .map(|port| (host, port, password))
-                .ok_or_else(|| {
-                    eprintln!("Redis port was not specified");
-                    BookServiceError::RedisPortError
-                })
-        })
-        .map(|(host, port, password)| format!("redis://:{}@{}:{}", password, host, port))
-}
-
 #[cfg(test)]
 mod tests {
+    extern crate testcontainers;
+    use self::testcontainers::*;
     use super::*;
-    use config::Config;
-
-    #[test]
-    fn test_redit_url() {
-        let mut config = Config::new();
-        &config
-            .set("redishost", "myredishost")
-            .unwrap()
-            .set("redispassword", "myredispass")
-            .unwrap()
-            .set("redisport", "6363")
-            .unwrap();
-        let test_settings = Settings::with_config(config.clone());
-
-        let url = "redis://:myredispass@myredishost:6363";
-        let result = redis_url(&test_settings).unwrap();
-        assert_eq!(url.to_string(), result);
-    }
 
     #[test]
     fn test_uuid_from_key() {
         let key = "BOOK-0bcd291d-b7c5-4390-965f-8a70707d22a5";
         let result = uuid_from_key(key);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_put_get() {
+        let docker = clients::Cli::default();
+        let node = docker.run(images::redis::Redis::default());
+        let host_port = node.get_host_port(6379).unwrap();
+
+        let settings = Settings::default()
+            .with_redis_host("localhost")
+            .with_redis_port(host_port);
+
+        let key = "BOOK-0bcd291d-b7c5-4390-965f-8a70707d22a5";
+        let book_id = uuid_from_key(key).unwrap();
+
+        let book = Book::default()
+            .with_book_id(&book_id)
+            .with_author("Robert")
+            .with_title("Jordan");
+
+        let dao = BookDao::new(&settings).unwrap();
+
+        let _ = dao.put(&book).unwrap();
+
+        let result = dao.get(&book_id).unwrap();
+
+        assert_eq!(book, result);
     }
 }

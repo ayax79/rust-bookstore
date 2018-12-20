@@ -22,3 +22,7 @@ pnet = "0.21.0"
 ipnetwork = "0.12"
 redis = "0.8"
 base64 = "0.9"
+
+[dev-dependencies]
+# once redis is released remove
+testcontainers = {git = "https://github.com/testcontainers/testcontainers-rs.git"}

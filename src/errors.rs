@@ -23,7 +23,6 @@ pub enum BookServiceError {
     DaoInitializationError(RedisError),
     MissingFieldError(String),
     SettingsError(ConfigError),
-    RedisPasswordError,
     RedisHostError,
     RedisPortError,
 }
@@ -45,9 +44,6 @@ impl fmt::Display for BookServiceError {
             &BookServiceError::SettingsError(ref e) => {
                 write!(f, "Configuration Issue - Root Cause: {}", e)
             }
-            &BookServiceError::RedisPasswordError => {
-                write!(f, "Redis password was missing or improper base64")
-            }
             &BookServiceError::RedisHostError => write!(f, "Redis host was missing"),
             &BookServiceError::RedisPortError => write!(f, "Redis port was missing"),
         }
@@ -66,7 +62,6 @@ impl Error for BookServiceError {
             BookServiceError::BookBodyError(ref cause) => cause.description(),
             BookServiceError::DaoInitializationError(ref cause) => cause.description(),
             BookServiceError::SettingsError(ref cause) => cause.description(),
-            BookServiceError::RedisPasswordError => "Could not decode redis password",
             BookServiceError::RedisHostError => "Redis host was missing",
             BookServiceError::RedisPortError => "Redis port was missing",
             BookServiceError::MissingFieldError(_) => "Book entry was missing a field",

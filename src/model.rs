@@ -5,7 +5,7 @@ use serde_json;
 use std::fmt;
 use uuid::Uuid;
 
-#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct Book {
     #[serde(
         serialize_with = "serialize_uuid",
@@ -32,6 +32,30 @@ impl Book {
 
     pub fn to_vec(&self) -> Result<Vec<u8>, BookServiceError> {
         serde_json::to_vec(self).map_err(BookServiceError::BookSerializationError)
+    }
+
+    #[allow(dead_code)]
+    pub fn with_book_id(self, book_id: &Uuid) -> Self {
+        Book {
+            book_id: book_id.to_owned(),
+            ..self
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn with_author(self, author: &str) -> Self {
+        Book {
+            author: author.to_owned(),
+            ..self
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn with_title(self, title: &str) -> Self {
+        Book {
+            author: title.to_owned(),
+            ..self
+        }
     }
 }
 
