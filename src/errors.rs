@@ -30,27 +30,27 @@ pub enum BookServiceError {
 
 impl fmt::Display for BookServiceError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &BookServiceError::InvalidUuidError(ref pe) => write!(f, "Root Cause: {}", pe),
-            &BookServiceError::NotFoundError => write!(f, "Resource or path was not found"),
-            &BookServiceError::BookCreateError(ref pie) => {
+        match *self {
+            BookServiceError::InvalidUuidError(ref pe) => write!(f, "Root Cause: {}", pe),
+            BookServiceError::NotFoundError => write!(f, "Resource or path was not found"),
+            BookServiceError::BookCreateError(ref pie) => {
                 write!(f, "Root Cause: {:?}", pie.cause())
             }
-            &BookServiceError::BookGetError(ref gie) => write!(f, "Root Cause: {:?}", gie.cause()),
-            &BookServiceError::BookParseError(ref sje) => write!(f, "Root Cause: {}", sje),
-            &BookServiceError::BookSerializationError(ref sje) => write!(f, "Root Cause: {}", sje),
-            &BookServiceError::BookBodyError(ref he) => write!(f, "Root Cause: {}", he),
-            &BookServiceError::DaoInitializationError(ref e) => {
+            BookServiceError::BookGetError(ref gie) => write!(f, "Root Cause: {:?}", gie.cause()),
+            BookServiceError::BookParseError(ref sje) => write!(f, "Root Cause: {}", sje),
+            BookServiceError::BookSerializationError(ref sje) => write!(f, "Root Cause: {}", sje),
+            BookServiceError::BookBodyError(ref he) => write!(f, "Root Cause: {}", he),
+            BookServiceError::DaoInitializationError(ref e) => {
                 write!(f, "Root Cause: {:?}", e.cause())
             }
-            &BookServiceError::MissingFieldError(ref field) => {
+            BookServiceError::MissingFieldError(ref field) => {
                 write!(f, "Invalid Book, missing field {} ", field)
             }
-            &BookServiceError::SettingsError(ref e) => {
-                write!(f, "Configuration Issue - Root Cause: {}", e)
+            BookServiceError::SettingsError(ref e) => {
+               write!(f, "Configuration Issue - Root Cause: {}", e)
             }
-            &BookServiceError::RedisHostError => write!(f, "Redis host was missing"),
-            &BookServiceError::RedisPortError => write!(f, "Redis port was missing"),
+            BookServiceError::RedisHostError => write!(f, "Redis host was missing"),
+            BookServiceError::RedisPortError => write!(f, "Redis port was missing"),
         }
     }
 }
