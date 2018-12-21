@@ -56,36 +56,21 @@ impl fmt::Display for BookServiceError {
 }
 
 impl Error for BookServiceError {
-    fn description(&self) -> &str {
-        match *self {
-            BookServiceError::InvalidUuidError(ref cause) => cause.description(),
-            BookServiceError::NotFoundError => "Resource or path could was not found",
-            BookServiceError::BookCreateError(ref cause) => cause.description(),
-            BookServiceError::BookGetError(ref cause) => cause.description(),
-            BookServiceError::BookParseError(ref cause) => cause.description(),
-            BookServiceError::BookSerializationError(ref cause) => cause.description(),
-            BookServiceError::BookBodyError(ref cause) => cause.description(),
-            BookServiceError::DaoInitializationError(ref cause) => cause.description(),
-            BookServiceError::SettingsError(ref cause) => cause.description(),
-            BookServiceError::RedisHostError => "Redis host was missing",
-            BookServiceError::RedisPortError => "Redis port was missing",
-            BookServiceError::MissingFieldError(_) => "Book entry was missing a field",
-        }
-    }
 
-    fn cause(&self) -> Option<&Error> {
-        match *self {
-            BookServiceError::InvalidUuidError(ref cause) => Some(cause),
-            BookServiceError::BookCreateError(ref cause) => cause.cause(),
-            BookServiceError::BookGetError(ref cause) => cause.cause(),
-            BookServiceError::BookParseError(ref cause) => Some(cause),
-            BookServiceError::BookSerializationError(ref cause) => Some(cause),
-            BookServiceError::BookBodyError(ref cause) => Some(cause),
-            BookServiceError::DaoInitializationError(ref cause) => cause.cause(),
-            BookServiceError::SettingsError(ref cause) => Some(cause),
+    fn source(&self) -> Option<&(Error + 'static)> {
+        match self {
+            BookServiceError::InvalidUuidError(cause) => Some(cause),
+            BookServiceError::BookCreateError(cause) => cause.cause(),
+            BookServiceError::BookGetError(cause) => cause.cause(),
+            BookServiceError::BookParseError(cause) => Some(cause),
+            BookServiceError::BookSerializationError(cause) => Some(cause),
+            BookServiceError::BookBodyError(cause) => Some(cause),
+            BookServiceError::DaoInitializationError(cause) => cause.cause(),
+            BookServiceError::SettingsError(cause) => Some(cause),
             _ => None,
         }
     }
+
 }
 
 impl From<HyperError> for BookServiceError {
@@ -128,7 +113,7 @@ impl From<RedisError> for BookServiceError {
 pub struct DaoCause(Option<RedisError>, Option<R2D2RedisError>);
 
 impl DaoCause {
-    pub fn cause(&self) -> Option<&Error> {
+    pub fn cause(&self) -> Option<&(Error + 'static)> {
         match self {
             DaoCause(Some(ref e), _) => Some(e),
             DaoCause(_, Some(e)) => Some(e),
