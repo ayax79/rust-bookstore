@@ -28,9 +28,9 @@ mod settings;
 use futures::Future;
 use hyper::server::Server;
 use hyper::service::service_fn;
-use network::NetworkInfo;
-use service::BookService;
-use settings::Settings;
+use crate::network::NetworkInfo;
+use crate::service::BookService;
+use crate::settings::Settings;
 
 fn main() {
     let log_result = env_logger::init();

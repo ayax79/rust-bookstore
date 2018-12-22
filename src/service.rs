@@ -5,11 +5,11 @@ use std::convert::From;
 use std::error::Error;
 use std::{io, str};
 
-use dao::BookDao;
-use errors::BookServiceError;
-use model::Book;
-use request::BookRequest;
-use settings::Settings;
+use crate::dao::BookDao;
+use crate::errors::BookServiceError;
+use crate::model::Book;
+use crate::request::BookRequest;
+use crate::settings::Settings;
 
 type BookSvcFuture = Box<Future<Item = Response<Body>, Error = io::Error> + Send>;
 

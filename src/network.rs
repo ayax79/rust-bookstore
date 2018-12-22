@@ -1,6 +1,6 @@
 use ipnetwork::IpNetwork;
 use pnet::datalink::{self, NetworkInterface};
-use settings::Settings;
+use crate::settings::Settings;
 use std::net::SocketAddr;
 
 const DEFAULT_PORT: u32 = 8080;

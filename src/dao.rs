@@ -1,12 +1,12 @@
 use uuid::Uuid;
 
-use errors::BookServiceError;
-use errors::DaoCause;
-use model::Book;
+use crate::errors::BookServiceError;
+use crate::errors::DaoCause;
+use crate::model::Book;
 use r2d2_redis::redis::Commands;
 use r2d2_redis::{r2d2, RedisConnectionManager};
 use redis::{self, PipelineCommands};
-use settings::Settings;
+use crate::settings::Settings;
 use std::collections::HashMap;
 use std::convert::AsRef;
 use std::ops::Deref;

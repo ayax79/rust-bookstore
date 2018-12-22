@@ -1,5 +1,5 @@
 use config::{Config, Environment};
-use errors::BookServiceError;
+use crate::errors::BookServiceError;
 use std::convert::From;
 
 #[derive(Debug, Clone, Default)]
