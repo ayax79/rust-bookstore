@@ -1,22 +1,11 @@
-extern crate futures;
-extern crate hyper;
-extern crate tokio_core;
-extern crate uuid;
 #[macro_use]
 extern crate log;
-extern crate base64;
-extern crate config;
-extern crate env_logger;
-extern crate ipnetwork;
-extern crate pnet;
-extern crate redis;
 #[macro_use]
 extern crate serde_derive;
-extern crate core;
-extern crate r2d2_redis;
-extern crate serde;
-extern crate serde_json;
-
+use hyper;
+use env_logger;
+use redis;
+use serde_json;
 mod dao;
 mod errors;
 mod model;
@@ -25,12 +14,12 @@ mod request;
 mod service;
 mod settings;
 
-use futures::Future;
-use hyper::server::Server;
-use hyper::service::service_fn;
 use crate::network::NetworkInfo;
 use crate::service::BookService;
 use crate::settings::Settings;
+use futures::Future;
+use hyper::server::Server;
+use hyper::service::service_fn;
 
 fn main() {
     let log_result = env_logger::init();

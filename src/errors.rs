@@ -29,7 +29,7 @@ pub enum BookServiceError {
 }
 
 impl fmt::Display for BookServiceError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             BookServiceError::InvalidUuidError(ref pe) => write!(f, "Root Cause: {}", pe),
             BookServiceError::NotFoundError => write!(f, "Resource or path was not found"),
@@ -47,7 +47,7 @@ impl fmt::Display for BookServiceError {
                 write!(f, "Invalid Book, missing field {} ", field)
             }
             BookServiceError::SettingsError(ref e) => {
-               write!(f, "Configuration Issue - Root Cause: {}", e)
+                write!(f, "Configuration Issue - Root Cause: {}", e)
             }
             BookServiceError::RedisHostError => write!(f, "Redis host was missing"),
             BookServiceError::RedisPortError => write!(f, "Redis port was missing"),
@@ -56,8 +56,7 @@ impl fmt::Display for BookServiceError {
 }
 
 impl Error for BookServiceError {
-
-    fn source(&self) -> Option<&(Error + 'static)> {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             BookServiceError::InvalidUuidError(cause) => Some(cause),
             BookServiceError::BookCreateError(cause) => cause.cause(),
@@ -70,7 +69,6 @@ impl Error for BookServiceError {
             _ => None,
         }
     }
-
 }
 
 impl From<HyperError> for BookServiceError {
@@ -113,7 +111,7 @@ impl From<RedisError> for BookServiceError {
 pub struct DaoCause(Option<RedisError>, Option<R2D2RedisError>);
 
 impl DaoCause {
-    pub fn cause(&self) -> Option<&(Error + 'static)> {
+    pub fn cause(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             DaoCause(Some(ref e), _) => Some(e),
             DaoCause(_, Some(e)) => Some(e),

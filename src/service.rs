@@ -11,7 +11,7 @@ use crate::model::Book;
 use crate::request::BookRequest;
 use crate::settings::Settings;
 
-type BookSvcFuture = Box<Future<Item = Response<Body>, Error = io::Error> + Send>;
+type BookSvcFuture = Box<dyn Future<Item = Response<Body>, Error = io::Error> + Send>;
 
 #[derive(Debug, Clone)]
 pub struct BookService {

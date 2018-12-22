@@ -3,10 +3,10 @@ use uuid::Uuid;
 use crate::errors::BookServiceError;
 use crate::errors::DaoCause;
 use crate::model::Book;
+use crate::settings::Settings;
 use r2d2_redis::redis::Commands;
 use r2d2_redis::{r2d2, RedisConnectionManager};
 use redis::{self, PipelineCommands};
-use crate::settings::Settings;
 use std::collections::HashMap;
 use std::convert::AsRef;
 use std::ops::Deref;
@@ -112,7 +112,7 @@ fn uuid_from_key(key: &str) -> Result<Uuid, BookServiceError> {
 
 #[cfg(test)]
 mod tests {
-    extern crate testcontainers;
+    use testcontainers;
 
     use self::testcontainers::*;
     use super::*;

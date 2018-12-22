@@ -76,7 +76,7 @@ where
     impl<'de> Visitor<'de> for UuidVisitor {
         type Value = Uuid;
 
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
             formatter.write_str("A valid uuid string")
         }
 
