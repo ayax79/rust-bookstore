@@ -1,69 +1,72 @@
-use model::BookEntry;
-use rusoto::dynamodb::{DynamoDBError, DynamoDBHelper, PutItemInputAttributeMap};
-use rusoto::dynamodb::{AttributeValue, PutItemInput, Key, GetItemInput};
-use dynamo_utils::{create_db_helper, BOOKS_TABLE};
+use crate::model::BookEntry;
+use anyhow::Result as AnyhowResult;
+use aws_sdk_dynamodb::client::Client;
+use aws_sdk_dynamodb::types::{
+    AttributeValue, BillingMode, KeySchemaElement, KeyType, ProvisionedThroughput,
+};
 use uuid::Uuid;
-use std::collections::HashMap;
 
-fn read_entry(item_map: HashMap<String, AttributeValue>) -> BookEntry {
-    BookEntry {
-        book_id: Uuid::new_v4(),
-        author: "bar".to_string(),
-        title: "baz".to_string()
-    }
+pub const BOOKS_TABLE: &str = "books";
+
+pub struct BookEntryDao {
+    client: Client,
 }
 
-fn build_put_item_input(entry: &BookEntry) -> PutItemInput {
-    let mut input = PutItemInput::default();
-    input.Item = create_put_item_map(entry);
-    input.TableName = BOOKS_TABLE.to_string();
-    return input;
-}
-
-fn create_put_item_map(entry: &BookEntry) -> PutItemInputAttributeMap {
-    let mut item_map = PutItemInputAttributeMap::default();
-    item_map.insert("book_id".to_string(), val!(S => entry.book_id.to_urn_string()));
-    item_map.insert("author".to_string(), val!(S => entry.author));
-    item_map.insert("title".to_string(), val!(S => entry.title));
-    return item_map;
-}
-
-fn create_key(uuid: &Uuid) -> Key {
-    let mut key = Key::default();
-    key.insert("book_id".to_string(), val!(S => uuid.to_urn_string()));
-    return key;
-}
-
-fn create_get_item_input(uuid: &Uuid) -> GetItemInput {
-    let mut request = GetItemInput::default();
-    request.Key = create_key(uuid);
-    request.TableName = BOOKS_TABLE.to_string();
-    return request;
-}
-
-pub struct MyDao<'a> { dynamodb: Box<DynamoDBHelper<'a> > }
-
-impl <'a> MyDao<'a> {
-
-    pub fn new() -> MyDao<'a>   {
-        MyDao { dynamodb: Box::new(create_db_helper()) }
+impl BookEntryDao {
+    pub fn new(client: Client) -> Self {
+        Self { client }
     }
 
-    pub fn put(&mut self, entry: &BookEntry) -> Result<(), DynamoDBError> {
-        let item = build_put_item_input(entry);
-        try!(self.dynamodb.as_mut().put_item(&item));
-        Ok(())
+    pub async fn put(&self, entry: &BookEntry) -> AnyhowResult<()> {
+        self.client
+            .put_item()
+            .table_name(BOOKS_TABLE)
+            .item(
+                "book_id",
+                AttributeValue::S(format!("{}", entry.book_id.urn())),
+            )
+            .item("author", AttributeValue::S(entry.author.clone()))
+            .item("title", AttributeValue::S(entry.title.clone()))
+            .send()
+            .await
+            .map_err(anyhow::Error::new)
+            .map(|_| ())
     }
 
-    pub fn get(&mut self, uuid: &Uuid) -> Result<Option<BookEntry>, DynamoDBError> {
-        let request = create_get_item_input(uuid);
-
-        match (self.dynamodb.as_mut().get_item(&request)) {
-            Ok(item) => {
-                Ok(item.Item.map(|item_map| read_entry(item_map)))
-            }
-            Err(err) => Err(err)
-        }
+    pub async fn get(&self, uuid: &Uuid) -> AnyhowResult<Option<BookEntry>> {
+        self.client
+            .get_item()
+            .table_name(BOOKS_TABLE)
+            .key("book_id", AttributeValue::S(format!("{}", uuid.urn())))
+            .send()
+            .await
+            .map_err(anyhow::Error::new)
+            .map(|output| output.item)
+            .and_then(|item| item.map(BookEntry::try_from).transpose())
     }
 
+    // todo - use this
+    #[allow(dead_code)]
+    async fn create_book_table(&self) -> AnyhowResult<()> {
+        self.client
+            .create_table()
+            .table_name(BOOKS_TABLE)
+            .billing_mode(BillingMode::Provisioned)
+            .provisioned_throughput(
+                ProvisionedThroughput::builder()
+                    .read_capacity_units(5)
+                    .write_capacity_units(5)
+                    .build()?,
+            )
+            .key_schema(
+                KeySchemaElement::builder()
+                    .attribute_name("book_id")
+                    .key_type(KeyType::Hash)
+                    .build()?,
+            )
+            .send()
+            .await
+            .map_err(anyhow::Error::new)
+            .map(|_| ())
+    }
 }

@@ -1,8 +1,14 @@
 [package]
-name = "cql-example"
+name = "rust-bookstore"
 version = "0.1.0"
-authors = ["Jack Wright <jack.wright@nike.com>"]
+authors = ["Jack Wright <jack.wright@disqo.com>"]
+edition = "2021"
 
 [dependencies]
-rusoto = "0.10.0"
-uuid = "0.1.18"
+uuid = { version = "1.6", features = ["serde", "v4"] }
+aws-config = { version= "1.0", features = ["behavior-version-latest"] }
+aws-sdk-dynamodb = "1.4"
+tokio = { version = "1", features = ["full"] }
+anyhow = { version = "1.0.75", features = ["backtrace"] }
+tracing = { version = "0.1", features = ["log"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter"] }
